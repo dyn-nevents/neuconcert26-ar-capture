@@ -3,18 +3,13 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU WebAR Check-in</title>
-    <!-- A-Frame & MindAR -->
+    <!-- A-Frame & MindAR bản nén nhanh -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    <!-- Thư viện giúp AR luôn quay mặt chính diện về phía camera bất kể góc nhìn -->
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      /* Nút chụp ảnh to, rõ, có hiệu ứng chạm */
+      body { margin: 0; overflow: hidden; background: #000; }
       #capture-btn {
         position: fixed;
         bottom: 30px;
@@ -32,14 +27,10 @@
       #capture-btn:active {
         transform: translateX(-50%) scale(0.9);
       }
-      /* Khung xem và lưu ảnh khi chụp xong (hoạt động tốt cả trên Messenger, Safari, Chrome) */
       #photo-modal {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.85);
         z-index: 20000;
         flex-direction: column;
@@ -52,11 +43,10 @@
         max-width: 90%;
         max-height: 75%;
         border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.5);
       }
       #modal-note {
         color: white;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 14px;
         margin-top: 15px;
         text-align: center;
@@ -77,32 +67,26 @@
   <body>
     <button id="capture-btn"></button>
 
-    <!-- Modal hiển thị ảnh đã chụp để người dùng nhấn giữ Lưu hoặc Tải về -->
     <div id="photo-modal">
       <img id="captured-img" src="" alt="Captured Image" />
-      <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b> (Add to Photos)</div>
+      <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
       <button id="close-modal-btn">Chụp lại</button>
     </div>
 
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 10; warmupTolerance: 1; missTolerance: 3; uiLoading: no;"
       color-space="sRGB"
-      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: true, alpha: true"
+      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: false, powerPreference: high-performance"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
-      <a-assets>
+      <a-assets timeout="10000">
         <img id="charImg" src="./character.png" />
       </a-assets>
 
       <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <!-- 
-          - look-at="#mainCamera": Luôn xoay mặt chính diện về mắt người xem, không bao giờ bị mỏng hay lép
-          - scale="1.8 1.8 1.8": Kích cỡ to gấp đôi bản cũ
-          - animation: Nhún nhảy bồng bềnh êm dịu, không giật sượng
-        -->
         <a-image
           src="#charImg"
           position="0 0.1 0.2"
@@ -135,26 +119,16 @@
         canvas.height = video.videoHeight || window.innerHeight;
         const ctx = canvas.getContext('2d');
 
-        // 1. Vẽ khung hình thực tế từ Camera
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // 2. Vẽ đối tượng AR đè lên đúng tọa độ
         const webglCanvas = sceneEl.components.screenshot.getCanvas('perspective');
         if (webglCanvas) {
           ctx.drawImage(webglCanvas, 0, 0, canvas.width, canvas.height);
         }
 
         const dataURL = canvas.toDataURL('image/png');
-
-        // Hiển thị khung popup ảnh để vượt qua cơ chế chặn tải file của Messenger/Safari
         capturedImg.src = dataURL;
         photoModal.style.display = 'flex';
-
-        // Tự động kích hoạt tải xuống nếu trình duyệt ngoài hỗ trợ
-        const link = document.createElement('a');
-        link.download = 'NEU-AR-Capture.png';
-        link.href = dataURL;
-        link.click();
       });
     </script>
   </body>
