@@ -3,12 +3,12 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU WebAR Check-in</title>
+    <!-- A-Frame & MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
 
     <style>
-      body { margin: 0; overflow: hidden; background: #000; }
+      body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 
       #ui-container {
         position: fixed;
@@ -16,10 +16,11 @@
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 2147483647;
+        z-index: 10000;
         pointer-events: none;
       }
 
+      /* Nút xoay camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
@@ -41,12 +42,12 @@
         width: 26px;
         height: 26px;
         fill: #ffffff;
-        pointer-events: none;
       }
       #flip-btn:active {
         transform: scale(0.9);
       }
 
+      /* Nút chụp ảnh */
       #capture-btn {
         pointer-events: auto;
         position: absolute;
@@ -66,12 +67,52 @@
         transform: translateX(-50%) scale(0.9);
       }
 
+      /* Hướng dẫn ban đầu */
+      #scan-hint {
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.65);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+      }
+
+      /* MASCOT NỔI 60FPS KHÔNG RUNG GIẬT, CHỐNG DẸP LÉP */
+      #mascot-overlay {
+        position: absolute;
+        top: 18%;
+        right: 8%;
+        width: 170px;
+        height: auto;
+        display: none; /* Ẩn ban đầu, chỉ hiện khi quét trúng */
+        pointer-events: none;
+        filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
+        animation: floatAnim 2.2s ease-in-out infinite alternate, swayAnim 3s ease-in-out infinite alternate;
+      }
+
+      @keyframes floatAnim {
+        0% { transform: translateY(0px); }
+        100% { transform: translateY(-18px); }
+      }
+
+      @keyframes swayAnim {
+        0% { rotate: -3deg; }
+        100% { rotate: 4deg; }
+      }
+
+      /* Popup xem & tải ảnh */
       #photo-modal {
         display: none;
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        z-index: 2147483647;
+        background: rgba(0, 0, 0, 0.92);
+        z-index: 20000;
         flex-direction: column;
         align-items: center;
         justify-content: center;
@@ -83,11 +124,10 @@
         max-height: 75%;
         border-radius: 12px;
         object-fit: contain;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.8);
       }
       #modal-note {
         color: white;
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 14px;
         margin-top: 15px;
         text-align: center;
@@ -106,45 +146,38 @@
     </style>
   </head>
   <body>
+    <!-- Lớp UI độc lập hoàn toàn với A-Frame (Zero Giật Lag) -->
     <div id="ui-container">
+      <div id="scan-hint">Hướng camera vào Logo để check-in</div>
+      
       <button id="flip-btn" type="button" aria-label="Đổi camera">
         <svg viewBox="0 0 24 24">
           <path d="M7 7h10v3l4-4-4-4v3H5c-1.1 0-2 .9-2 2v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12c1.1 0 2-.9 2-2v-6h-2v6z"/>
         </svg>
       </button>
+
+      <!-- Mascot hiển thị đúng tỷ lệ ảnh gốc, không bị kéo dẹp -->
+      <img id="mascot-overlay" src="./character.png" alt="Mascot" />
+
       <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
     </div>
 
+    <!-- Modal Xem lại ảnh -->
     <div id="photo-modal">
       <img id="captured-img" src="" alt="Captured Image" />
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
       <button id="close-modal-btn" type="button">Chụp lại</button>
     </div>
 
+    <!-- Hệ thống Tracking MindAR đóng vai trò nhận diện kích hoạt -->
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 4; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 2; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
-      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
+      renderer="preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
-      <a-assets timeout="10000">
-        <img id="charImg" src="./character.png" />
-      </a-assets>
-
-      <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false">
-        <a-entity id="persistent-mascot" position="0.35 0.3 -1.8" visible="false">
-          <a-image
-            src="#charImg"
-            width="1"
-            height="1"
-            scale="0.8 0.8 0.8"
-            transparent="true"
-            animation__float="property: position; to: 0.35 0.38 -1.8; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
-            animation__sway="property: rotation; to: 0 0 4; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
-          </a-image>
-        </a-entity>
-      </a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target0" mindar-image-target="targetIndex: 0"></a-entity>
       <a-entity id="target1" mindar-image-target="targetIndex: 1"></a-entity>
@@ -156,18 +189,25 @@
       const photoModal = document.getElementById('photo-modal');
       const capturedImg = document.getElementById('captured-img');
       const closeModalBtn = document.getElementById('close-modal-btn');
-      const persistentMascot = document.getElementById('persistent-mascot');
+      const mascotOverlay = document.getElementById('mascot-overlay');
+      const scanHint = document.getElementById('scan-hint');
 
       const target0 = document.getElementById('target0');
       const target1 = document.getElementById('target1');
 
-      // Khi quét trúng ảnh bất kỳ (0 hoặc 1): Bật Mascot lên và GIỮ NGUYÊN luôn
-      const onTargetFound = () => {
-        persistentMascot.setAttribute('visible', 'true');
+      let isMascotActive = false;
+
+      // Khi quét trúng target (xanh hoặc trắng)
+      const activateMascot = () => {
+        if (!isMascotActive) {
+          isMascotActive = true;
+          mascotOverlay.style.display = 'block';
+          scanHint.style.opacity = '0'; // Ẩn hướng dẫn quét đi
+        }
       };
 
-      target0.addEventListener('targetFound', onTargetFound);
-      target1.addEventListener('targetFound', onTargetFound);
+      target0.addEventListener('targetFound', activateMascot);
+      target1.addEventListener('targetFound', activateMascot);
 
       let currentFacingMode = 'environment';
       let isSwitching = false;
@@ -176,7 +216,7 @@
         photoModal.style.display = 'none';
       });
 
-      // Cơ chế đổi Camera mượt mà
+      // Đổi camera trước / sau
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -198,7 +238,7 @@
           const constraints = {
             video: {
               facingMode: nextMode,
-              width: { ideal: 960 },
+              width: { ideal: 1080 },
               height: { ideal: 720 }
             },
             audio: false
@@ -229,14 +269,12 @@
         }
       });
 
-      // Cơ chế chụp ảnh tỷ lệ chuẩn
+      // Chụp ảnh: Kết hợp luồng camera thực tế + Mascot chuẩn tỷ lệ
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
 
-        const sceneEl = document.querySelector('a-scene');
         const video = document.querySelector('video');
-
         if (!video) return;
 
         const canvas = document.createElement('canvas');
@@ -246,8 +284,9 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        const vW = video.videoWidth;
-        const vH = video.videoHeight;
+        // 1. Tính toán crop camera chuẩn tỷ lệ màn hình (chống méo 100%)
+        const vW = video.videoWidth || 1;
+        const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
         const screenRatio = w / h;
 
@@ -272,9 +311,11 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        const webglCanvas = sceneEl.components.screenshot.getCanvas('perspective');
-        if (webglCanvas) {
-          ctx.drawImage(webglCanvas, 0, 0, w, h);
+        // 2. Nếu mascot đã kích hoạt, vẽ chính xác vị trí mascot lên ảnh chụp
+        if (isMascotActive && mascotOverlay.style.display !== 'none') {
+          const rect = mascotOverlay.getBoundingClientRect();
+          // Vẽ ảnh mascot với kích thước và tỷ lệ gốc chính xác
+          ctx.drawImage(mascotOverlay, rect.left, rect.top, rect.width, rect.height);
         }
 
         capturedImg.src = canvas.toDataURL('image/png');
