@@ -20,7 +20,6 @@
         pointer-events: none;
       }
 
-      /* Nút Đổi Camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
@@ -48,7 +47,6 @@
         transform: scale(0.9);
       }
 
-      /* Nút Chụp */
       #capture-btn {
         pointer-events: auto;
         position: absolute;
@@ -68,7 +66,6 @@
         transform: translateX(-50%) scale(0.9);
       }
 
-      /* Popup xem ảnh - căn chuẩn chống méo */
       #photo-modal {
         display: none;
         position: fixed;
@@ -85,7 +82,7 @@
         max-width: 90%;
         max-height: 75%;
         border-radius: 12px;
-        object-fit: contain; /* Giữ nguyên tỷ lệ chuẩn, chống bẹp */
+        object-fit: contain;
         box-shadow: 0 8px 24px rgba(0,0,0,0.7);
       }
       #modal-note {
@@ -124,14 +121,10 @@
       <button id="close-modal-btn" type="button">Chụp lại</button>
     </div>
 
-    <!-- 
-      - missTolerance: 1000 -> Đứng ra xa hoặc lệch góc vẫn giữ mascot không bị biến mất
-      - filterMinCF & filterBeta -> Tối ưu độ mượt, giảm rung và lag
-    -->
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 1; missTolerance: 1000; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 4; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
-      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: false, powerPreference: high-performance"
+      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
@@ -139,37 +132,22 @@
         <img id="charImg" src="./character.png" />
       </a-assets>
 
-      <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false"></a-camera>
-
-      <!-- Target 0: Giữ nguyên tỷ lệ 1:1 của nhân vật -->
-      <a-entity id="target0" mindar-image-target="targetIndex: 0">
-        <a-entity look-at="#mainCamera" position="0 0 0.1">
+      <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false">
+        <a-entity id="persistent-mascot" position="0.35 0.3 -1.8" visible="false">
           <a-image
             src="#charImg"
             width="1"
             height="1"
             scale="0.8 0.8 0.8"
             transparent="true"
-            animation__float="property: position; to: 0 0.12 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
-            animation__sway="property: rotation; to: 0 0 3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
+            animation__float="property: position; to: 0.35 0.38 -1.8; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
+            animation__sway="property: rotation; to: 0 0 4; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
           </a-image>
         </a-entity>
-      </a-entity>
+      </a-camera>
 
-      <!-- Target 1 -->
-      <a-entity id="target1" mindar-image-target="targetIndex: 1">
-        <a-entity look-at="#mainCamera" position="0 0 0.1">
-          <a-image
-            src="#charImg"
-            width="1"
-            height="1"
-            scale="0.8 0.8 0.8"
-            transparent="true"
-            animation__float="property: position; to: 0 0.12 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
-            animation__sway="property: rotation; to: 0 0 3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
-          </a-image>
-        </a-entity>
-      </a-entity>
+      <a-entity id="target0" mindar-image-target="targetIndex: 0"></a-entity>
+      <a-entity id="target1" mindar-image-target="targetIndex: 1"></a-entity>
     </a-scene>
 
     <script>
@@ -178,6 +156,18 @@
       const photoModal = document.getElementById('photo-modal');
       const capturedImg = document.getElementById('captured-img');
       const closeModalBtn = document.getElementById('close-modal-btn');
+      const persistentMascot = document.getElementById('persistent-mascot');
+
+      const target0 = document.getElementById('target0');
+      const target1 = document.getElementById('target1');
+
+      // Khi quét trúng ảnh bất kỳ (0 hoặc 1): Bật Mascot lên và GIỮ NGUYÊN luôn
+      const onTargetFound = () => {
+        persistentMascot.setAttribute('visible', 'true');
+      };
+
+      target0.addEventListener('targetFound', onTargetFound);
+      target1.addEventListener('targetFound', onTargetFound);
 
       let currentFacingMode = 'environment';
       let isSwitching = false;
@@ -186,7 +176,7 @@
         photoModal.style.display = 'none';
       });
 
-      // Cơ chế đổi Camera tối ưu tốc độ, giảm giật lag
+      // Cơ chế đổi Camera mượt mà
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -232,7 +222,6 @@
           }
 
         } catch (err) {
-          console.error("Lỗi đổi camera:", err);
           alert("Không thể lật camera: " + err.message);
         } finally {
           isSwitching = false;
@@ -240,7 +229,7 @@
         }
       });
 
-      // Cơ chế Chụp ảnh: Tính toán chuẩn Aspect Ratio chống méo/dẹp hình
+      // Cơ chế chụp ảnh tỷ lệ chuẩn
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -250,7 +239,6 @@
 
         if (!video) return;
 
-        // Tạo canvas bằng đúng kích thước thực tế của màn hình người dùng đang nhìn
         const canvas = document.createElement('canvas');
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -258,7 +246,6 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // Tính tỷ lệ crop vừa vặn (cover) tương tự cách trình duyệt hiển thị video
         const vW = video.videoWidth;
         const vH = video.videoHeight;
         const videoRatio = vW / vH;
@@ -277,7 +264,6 @@
           sy = (vH - sHeight) / 2;
         }
 
-        // Vẽ video background
         ctx.save();
         if (currentFacingMode === 'user') {
           ctx.translate(w, 0);
@@ -286,7 +272,6 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // Vẽ lớp AR 3D lên trên với đúng tỷ lệ màn hình
         const webglCanvas = sceneEl.components.screenshot.getCanvas('perspective');
         if (webglCanvas) {
           ctx.drawImage(webglCanvas, 0, 0, w, h);
