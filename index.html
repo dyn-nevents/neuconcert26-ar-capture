@@ -20,14 +20,14 @@
         pointer-events: none;
       }
 
-      /* Nút xoay camera */
+      /* Nút Đổi Camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
         top: 24px;
         right: 24px;
-        width: 52px;
-        height: 52px;
+        width: 50px;
+        height: 50px;
         background: rgba(0, 0, 0, 0.65);
         border: 2px solid #ffffff;
         border-radius: 50%;
@@ -39,8 +39,8 @@
         -webkit-tap-highlight-color: transparent;
       }
       #flip-btn svg {
-        width: 28px;
-        height: 28px;
+        width: 26px;
+        height: 26px;
         fill: #ffffff;
         pointer-events: none;
       }
@@ -48,7 +48,7 @@
         transform: scale(0.9);
       }
 
-      /* Nút chụp ảnh */
+      /* Nút Chụp */
       #capture-btn {
         pointer-events: auto;
         position: absolute;
@@ -68,6 +68,7 @@
         transform: translateX(-50%) scale(0.9);
       }
 
+      /* Popup xem ảnh - căn chuẩn chống méo */
       #photo-modal {
         display: none;
         position: fixed;
@@ -82,8 +83,10 @@
       }
       #captured-img {
         max-width: 90%;
-        max-height: 72%;
+        max-height: 75%;
         border-radius: 12px;
+        object-fit: contain; /* Giữ nguyên tỷ lệ chuẩn, chống bẹp */
+        box-shadow: 0 8px 24px rgba(0,0,0,0.7);
       }
       #modal-note {
         color: white;
@@ -121,10 +124,14 @@
       <button id="close-modal-btn" type="button">Chụp lại</button>
     </div>
 
+    <!-- 
+      - missTolerance: 1000 -> Đứng ra xa hoặc lệch góc vẫn giữ mascot không bị biến mất
+      - filterMinCF & filterBeta -> Tối ưu độ mượt, giảm rung và lag
+    -->
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 5; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 1; missTolerance: 1000; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
-      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
+      renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: false, powerPreference: high-performance"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
@@ -134,12 +141,14 @@
 
       <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0">
+      <!-- Target 0: Giữ nguyên tỷ lệ 1:1 của nhân vật -->
+      <a-entity id="target0" mindar-image-target="targetIndex: 0">
         <a-entity look-at="#mainCamera" position="0 0 0.1">
           <a-image
             src="#charImg"
-            position="0 0 0"
-            scale="0.75 0.75 0.75"
+            width="1"
+            height="1"
+            scale="0.8 0.8 0.8"
             transparent="true"
             animation__float="property: position; to: 0 0.12 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
             animation__sway="property: rotation; to: 0 0 3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
@@ -147,12 +156,14 @@
         </a-entity>
       </a-entity>
 
-      <a-entity mindar-image-target="targetIndex: 1">
+      <!-- Target 1 -->
+      <a-entity id="target1" mindar-image-target="targetIndex: 1">
         <a-entity look-at="#mainCamera" position="0 0 0.1">
           <a-image
             src="#charImg"
-            position="0 0 0"
-            scale="0.75 0.75 0.75"
+            width="1"
+            height="1"
+            scale="0.8 0.8 0.8"
             transparent="true"
             animation__float="property: position; to: 0 0.12 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
             animation__sway="property: rotation; to: 0 0 3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
@@ -175,7 +186,7 @@
         photoModal.style.display = 'none';
       });
 
-      // Cơ chế đổi camera can thiệp thẳng vào thẻ video đang chạy
+      // Cơ chế đổi Camera tối ưu tốc độ, giảm giật lag
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -194,42 +205,26 @@
         const nextMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
         try {
-          // Lấy danh sách thiết bị camera khả dụng
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter(d => d.kind === 'videoinput');
-
-          let constraints = {
+          const constraints = {
             video: {
-              facingMode: { exact: nextMode },
-              width: { ideal: 1280 },
+              facingMode: nextMode,
+              width: { ideal: 960 },
               height: { ideal: 720 }
             },
             audio: false
           };
 
-          let newStream;
-          try {
-            newStream = await navigator.mediaDevices.getUserMedia(constraints);
-          } catch (errFallback) {
-            // Fallback nếu máy không hỗ trợ exact constraint
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: nextMode },
-              audio: false
-            });
-          }
+          const newStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-          // Dừng stream camera cũ
           if (videoEl.srcObject) {
             videoEl.srcObject.getTracks().forEach(track => track.stop());
           }
 
-          // Gán luồng camera mới trực tiếp vào video của MindAR
           videoEl.srcObject = newStream;
           await videoEl.play();
 
           currentFacingMode = nextMode;
 
-          // Lật gương ngang nếu là cam trước để nhìn tự nhiên như soi gương
           if (currentFacingMode === 'user') {
             videoEl.style.transform = 'scaleX(-1)';
           } else {
@@ -245,7 +240,7 @@
         }
       });
 
-      // Chụp ảnh giữ nguyên chiều cho cả 2 camera
+      // Cơ chế Chụp ảnh: Tính toán chuẩn Aspect Ratio chống méo/dẹp hình
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -255,25 +250,46 @@
 
         if (!video) return;
 
+        // Tạo canvas bằng đúng kích thước thực tế của màn hình người dùng đang nhìn
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || window.innerWidth;
-        canvas.height = video.videoHeight || window.innerHeight;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
 
+        // Tính tỷ lệ crop vừa vặn (cover) tương tự cách trình duyệt hiển thị video
+        const vW = video.videoWidth;
+        const vH = video.videoHeight;
+        const videoRatio = vW / vH;
+        const screenRatio = w / h;
+
+        let sWidth, sHeight, sx, sy;
+        if (videoRatio > screenRatio) {
+          sHeight = vH;
+          sWidth = vH * screenRatio;
+          sx = (vW - sWidth) / 2;
+          sy = 0;
+        } else {
+          sWidth = vW;
+          sHeight = vW / screenRatio;
+          sx = 0;
+          sy = (vH - sHeight) / 2;
+        }
+
+        // Vẽ video background
+        ctx.save();
         if (currentFacingMode === 'user') {
-          ctx.translate(canvas.width, 0);
+          ctx.translate(w, 0);
           ctx.scale(-1, 1);
         }
+        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
+        ctx.restore();
 
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        if (currentFacingMode === 'user') {
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
-
+        // Vẽ lớp AR 3D lên trên với đúng tỷ lệ màn hình
         const webglCanvas = sceneEl.components.screenshot.getCanvas('perspective');
         if (webglCanvas) {
-          ctx.drawImage(webglCanvas, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(webglCanvas, 0, 0, w, h);
         }
 
         capturedImg.src = canvas.toDataURL('image/png');
