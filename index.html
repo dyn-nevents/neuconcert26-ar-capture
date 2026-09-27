@@ -3,67 +3,79 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU WebAR Check-in</title>
-    <!-- A-Frame & MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
 
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
-      
-      /* Nút Chụp Ảnh */
-      #capture-btn {
+
+      /* Khung chứa các nút điều khiển - đảm bảo luôn click được */
+      #ui-container {
         position: fixed;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 72px;
-        height: 72px;
-        background: #ffffff;
-        border: 5px solid rgba(255, 255, 255, 0.7);
-        border-radius: 50%;
-        z-index: 10000;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-      }
-      #capture-btn:active {
-        transform: translateX(-50%) scale(0.9);
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2147483647;
+        pointer-events: none;
       }
 
-      /* Nút Đổi Camera Trước/Sau */
+      /* Nút Đổi Camera */
       #flip-btn {
-        position: fixed;
-        top: 25px;
-        right: 25px;
-        width: 48px;
-        height: 48px;
-        background: rgba(0, 0, 0, 0.55);
-        border: 2px solid rgba(255, 255, 255, 0.8);
+        pointer-events: auto;
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        width: 52px;
+        height: 52px;
+        background: rgba(0, 0, 0, 0.65);
+        border: 2px solid #ffffff;
         border-radius: 50%;
-        z-index: 10000;
-        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        backdrop-filter: blur(5px);
-        -webkit-backdrop-filter: blur(5px);
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        -webkit-tap-highlight-color: transparent;
       }
       #flip-btn svg {
-        width: 26px;
-        height: 26px;
+        width: 28px;
+        height: 28px;
         fill: #ffffff;
+        pointer-events: none;
       }
       #flip-btn:active {
         transform: scale(0.9);
       }
 
-      /* Popup xem & lưu ảnh */
+      /* Nút Chụp */
+      #capture-btn {
+        pointer-events: auto;
+        position: absolute;
+        bottom: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 74px;
+        height: 74px;
+        background: #ffffff;
+        border: 5px solid rgba(255, 255, 255, 0.7);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        -webkit-tap-highlight-color: transparent;
+      }
+      #capture-btn:active {
+        transform: translateX(-50%) scale(0.9);
+      }
+
+      /* Modal hiển thị ảnh đã chụp */
       #photo-modal {
         display: none;
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        z-index: 20000;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 2147483647;
         flex-direction: column;
         align-items: center;
         justify-content: center;
@@ -72,7 +84,7 @@
       }
       #captured-img {
         max-width: 90%;
-        max-height: 75%;
+        max-height: 72%;
         border-radius: 12px;
       }
       #modal-note {
@@ -86,7 +98,7 @@
         margin-top: 15px;
         padding: 10px 24px;
         background: #ffffff;
-        color: #333;
+        color: #111;
         border: none;
         border-radius: 20px;
         font-weight: bold;
@@ -96,20 +108,20 @@
     </style>
   </head>
   <body>
-    <!-- Nút Lật Camera Trước/Sau -->
-    <button id="flip-btn" aria-label="Flip Camera">
-      <svg viewBox="0 0 24 24">
-        <path d="M7 7h10v3l4-4-4-4v3H5c-1.1 0-2 .9-2 2v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12c1.1 0 2-.9 2-2v-6h-2v6z"/>
-      </svg>
-    </button>
-
-    <!-- Nút Chụp -->
-    <button id="capture-btn"></button>
+    <!-- Lớp UI độc lập -->
+    <div id="ui-container">
+      <button id="flip-btn" type="button" aria-label="Đổi camera">
+        <svg viewBox="0 0 24 24">
+          <path d="M7 7h10v3l4-4-4-4v3H5c-1.1 0-2 .9-2 2v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12c1.1 0 2-.9 2-2v-6h-2v6z"/>
+        </svg>
+      </button>
+      <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
+    </div>
 
     <div id="photo-modal">
       <img id="captured-img" src="" alt="Captured Image" />
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
-      <button id="close-modal-btn">Chụp lại</button>
+      <button id="close-modal-btn" type="button">Chụp lại</button>
     </div>
 
     <a-scene
@@ -125,7 +137,6 @@
 
       <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Target 0 (Nền xanh) -->
       <a-entity mindar-image-target="targetIndex: 0">
         <a-entity look-at="#mainCamera" position="0 0 0.1">
           <a-image
@@ -139,7 +150,6 @@
         </a-entity>
       </a-entity>
 
-      <!-- Target 1 (Nền trắng) -->
       <a-entity mindar-image-target="targetIndex: 1">
         <a-entity look-at="#mainCamera" position="0 0 0.1">
           <a-image
@@ -155,59 +165,81 @@
     </a-scene>
 
     <script>
-      const captureBtn = document.getElementById('capture-btn');
       const flipBtn = document.getElementById('flip-btn');
+      const captureBtn = document.getElementById('capture-btn');
       const photoModal = document.getElementById('photo-modal');
       const capturedImg = document.getElementById('captured-img');
       const closeModalBtn = document.getElementById('close-modal-btn');
-      let currentFacingMode = 'environment'; // Mặc định là cam sau
+
+      let currentFacingMode = 'environment';
+      let isSwitching = false;
 
       closeModalBtn.addEventListener('click', () => {
         photoModal.style.display = 'none';
       });
 
-      // Cơ chế đổi camera trước / sau
-      flipBtn.addEventListener('click', async () => {
+      // Cơ chế đổi Camera chuẩn xác cho MindAR
+      flipBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (isSwitching) return;
+        isSwitching = true;
+        flipBtn.style.opacity = '0.5';
+
         const sceneEl = document.querySelector('a-scene');
         const arSystem = sceneEl.systems['mindar-image-system'];
-        
-        if (!arSystem) return;
 
-        // Đổi chế độ
         currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
-        // Tạm dừng tracking cũ
-        arSystem.stop();
-
         try {
-          // Lấy video stream mới theo facingMode đã chọn
-          const video = document.querySelector('video');
-          if (video && video.srcObject) {
-            const tracks = video.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
+          if (arSystem) {
+            arSystem.stop();
+          }
+
+          const oldVideo = document.querySelector('video');
+          if (oldVideo && oldVideo.srcObject) {
+            oldVideo.srcObject.getTracks().forEach(track => track.stop());
           }
 
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
-              facingMode: currentFacingMode
-            }
+              facingMode: { ideal: currentFacingMode },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false
           });
 
-          if (video) {
-            video.srcObject = stream;
-            video.play();
+          if (oldVideo) {
+            oldVideo.srcObject = stream;
+            await oldVideo.play();
+
+            // Lật gương video hiển thị khi dùng cam trước
+            if (currentFacingMode === 'user') {
+              oldVideo.style.transform = 'scaleX(-1)';
+            } else {
+              oldVideo.style.transform = 'scaleX(1)';
+            }
           }
 
-          // Khởi động lại hệ thống tracking với camera mới
-          arSystem.start();
+          if (arSystem) {
+            arSystem.start();
+          }
         } catch (err) {
-          console.error("Không thể đổi camera:", err);
-          alert("Không thể chuyển đổi camera trên thiết bị này.");
+          alert("Không thể mở camera trước trên thiết bị này: " + err.message);
+          currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        } finally {
+          isSwitching = false;
+          flipBtn.style.opacity = '1';
         }
       });
 
       // Cơ chế Chụp ảnh
-      captureBtn.addEventListener('click', () => {
+      captureBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         const sceneEl = document.querySelector('a-scene');
         const video = document.querySelector('video');
 
@@ -218,7 +250,6 @@
         canvas.height = video.videoHeight || window.innerHeight;
         const ctx = canvas.getContext('2d');
 
-        // Nếu là cam trước (selfie), lật gương ngang để ảnh không bị ngược
         if (currentFacingMode === 'user') {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
@@ -226,7 +257,6 @@
 
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Khôi phục ma trận vẽ để vẽ layer AR 3D không bị đảo chiều
         if (currentFacingMode === 'user') {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
         }
@@ -236,8 +266,7 @@
           ctx.drawImage(webglCanvas, 0, 0, canvas.width, canvas.height);
         }
 
-        const dataURL = canvas.toDataURL('image/png');
-        capturedImg.src = dataURL;
+        capturedImg.src = canvas.toDataURL('image/png');
         photoModal.style.display = 'flex';
       });
     </script>
