@@ -68,7 +68,7 @@
         transform: translateX(-50%) scale(0.9);
       }
 
-      /* Nhắc nhở quét */
+      /* Dòng nhắc quét */
       #scan-hint {
         position: absolute;
         top: 30px;
@@ -84,17 +84,16 @@
         z-index: 10003;
       }
 
-      /* KHUNG PHOTOBOOTH CHUẨN TỶ LỆ, SÁT MÉP TRÁI, KHÔNG MÉO CHỮ */
+      /* KHUNG PHOTOBOOTH HIỂN THỊ ĐẦY ĐỦ 100% KHÔNG BỊ CẮT TRÊN/DƯỚI */
       #photobooth-frame {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        /* object-fit: cover giữ nguyên tỷ lệ gốc của ảnh, chống méo 100% */
-        object-fit: cover;
-        /* object-position: left center ép toàn bộ mép trái dính sát cạnh màn hình */
-        object-position: left center;
+        /* contain: Giữ trọn 100% các chi tiết trên/dưới, không cắt mép */
+        object-fit: contain;
+        object-position: center center;
         pointer-events: none;
         display: none;
         z-index: 10001;
@@ -104,20 +103,17 @@
 
       @keyframes subtleFloat {
         0% {
-          transform: translateY(0px) translateX(0px) scale(1) rotate(0deg);
+          transform: translateY(0px) scale(1);
         }
-        33% {
-          transform: translateY(-8px) translateX(2px) scale(1.008) rotate(0.4deg);
-        }
-        66% {
-          transform: translateY(-4px) translateX(-2px) scale(0.996) rotate(-0.3deg);
+        50% {
+          transform: translateY(-8px) scale(1.008);
         }
         100% {
-          transform: translateY(-10px) translateX(1px) scale(1.01) rotate(0.5deg);
+          transform: translateY(-14px) scale(1.012);
         }
       }
 
-      /* Modal xem & tải ảnh */
+      /* Modal xem lại ảnh */
       #photo-modal {
         display: none;
         position: fixed;
@@ -275,7 +271,7 @@
         }
       });
 
-      // Chụp ảnh: Đồng bộ tỷ lệ chuẩn Cover - Left Center
+      // Chụp ảnh: Đồng bộ chính xác theo tỷ lệ CONTAIN (toàn bộ khung hình nguyên vẹn)
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -290,7 +286,7 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // 1. Vẽ luồng camera chuẩn tỷ lệ
+        // 1. Vẽ camera nền
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -317,7 +313,7 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // 2. Vẽ khung Photobooth theo thuật toán object-fit: cover; object-position: left center;
+        // 2. Vẽ khung Photobooth theo thuật toán object-fit: contain (không bị cắt trên/dưới)
         if (isFrameActive && photoboothFrame.style.display !== 'none') {
           ctx.save();
           const style = window.getComputedStyle(photoboothFrame);
@@ -327,18 +323,18 @@
           const fH = photoboothFrame.naturalHeight || h;
           const fRatio = fW / fH;
 
-          // Tính kích thước vẽ để cover màn hình mà không biến dạng
+          // Tính kích thước contain
           let drawW, drawH, drawX, drawY;
           if (fRatio > screenRatio) {
-            drawH = h;
-            drawW = h * fRatio;
-            drawX = 0; // Neo sát lề trái hoàn toàn
-            drawY = 0;
-          } else {
             drawW = w;
             drawH = w / fRatio;
             drawX = 0;
             drawY = (h - drawH) / 2;
+          } else {
+            drawH = h;
+            drawW = h * fRatio;
+            drawX = (w - drawW) / 2;
+            drawY = 0;
           }
 
           if (matrix && matrix !== 'none') {
@@ -352,7 +348,7 @@
 
             ctx.translate(w / 2 + tx, h / 2 + ty);
             ctx.transform(a, b, c, d, 0, 0);
-            ctx.drawImage(photoboothFrame, -w / 2 + drawX, -h / 2 + drawY, drawW, drawH);
+            ctx.drawImage(photoboothFrame, -drawW / 2, -drawH / 2, drawW, drawH);
           } else {
             ctx.drawImage(photoboothFrame, drawX, drawY, drawW, drawH);
           }
