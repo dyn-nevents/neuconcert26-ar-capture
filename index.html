@@ -84,14 +84,17 @@
         z-index: 10003;
       }
 
-      /* KHUNG PHOTOBOOTH ÉP SÁT MÉP TRÁI PHẢI */
+      /* KHUNG PHOTOBOOTH CHUẨN TỶ LỆ, SÁT MÉP TRÁI, KHÔNG MÉO CHỮ */
       #photobooth-frame {
         position: absolute;
         top: 0;
-        left: -3%;            /* Dạt sát lề trái */
-        width: 106%;          /* Tràn viền nhẹ để quả cầu chạm hẳn mép kính */
+        left: 0;
+        width: 100%;
         height: 100%;
-        object-fit: fill;
+        /* object-fit: cover giữ nguyên tỷ lệ gốc của ảnh, chống méo 100% */
+        object-fit: cover;
+        /* object-position: left center ép toàn bộ mép trái dính sát cạnh màn hình */
+        object-position: left center;
         pointer-events: none;
         display: none;
         z-index: 10001;
@@ -104,13 +107,13 @@
           transform: translateY(0px) translateX(0px) scale(1) rotate(0deg);
         }
         33% {
-          transform: translateY(-8px) translateX(3px) scale(1.01) rotate(0.5deg);
+          transform: translateY(-8px) translateX(2px) scale(1.008) rotate(0.4deg);
         }
         66% {
-          transform: translateY(-4px) translateX(-2px) scale(0.995) rotate(-0.4deg);
+          transform: translateY(-4px) translateX(-2px) scale(0.996) rotate(-0.3deg);
         }
         100% {
-          transform: translateY(-11px) translateX(2px) scale(1.012) rotate(0.6deg);
+          transform: translateY(-10px) translateX(1px) scale(1.01) rotate(0.5deg);
         }
       }
 
@@ -272,7 +275,7 @@
         }
       });
 
-      // Chụp ảnh: Đồng bộ vị trí tràn viền và ma trận chuyển động
+      // Chụp ảnh: Đồng bộ tỷ lệ chuẩn Cover - Left Center
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -287,7 +290,7 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // Vẽ luồng camera
+        // 1. Vẽ luồng camera chuẩn tỷ lệ
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -314,15 +317,29 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // Vẽ khung đè lên (tính toán tỉ lệ tràn viền 106% tương tự màn hình hiển thị)
+        // 2. Vẽ khung Photobooth theo thuật toán object-fit: cover; object-position: left center;
         if (isFrameActive && photoboothFrame.style.display !== 'none') {
           ctx.save();
           const style = window.getComputedStyle(photoboothFrame);
           const matrix = style.transform;
 
-          const frameW = w * 1.06;
-          const frameH = h;
-          const frameX = -w * 0.03;
+          const fW = photoboothFrame.naturalWidth || w;
+          const fH = photoboothFrame.naturalHeight || h;
+          const fRatio = fW / fH;
+
+          // Tính kích thước vẽ để cover màn hình mà không biến dạng
+          let drawW, drawH, drawX, drawY;
+          if (fRatio > screenRatio) {
+            drawH = h;
+            drawW = h * fRatio;
+            drawX = 0; // Neo sát lề trái hoàn toàn
+            drawY = 0;
+          } else {
+            drawW = w;
+            drawH = w / fRatio;
+            drawX = 0;
+            drawY = (h - drawH) / 2;
+          }
 
           if (matrix && matrix !== 'none') {
             const values = matrix.split('(')[1].split(')')[0].split(',');
@@ -335,9 +352,9 @@
 
             ctx.translate(w / 2 + tx, h / 2 + ty);
             ctx.transform(a, b, c, d, 0, 0);
-            ctx.drawImage(photoboothFrame, -frameW / 2 + (frameX + (frameW - w) / 2), -frameH / 2, frameW, frameH);
+            ctx.drawImage(photoboothFrame, -w / 2 + drawX, -h / 2 + drawY, drawW, drawH);
           } else {
-            ctx.drawImage(photoboothFrame, frameX, 0, frameW, frameH);
+            ctx.drawImage(photoboothFrame, drawX, drawY, drawW, drawH);
           }
           ctx.restore();
         }
