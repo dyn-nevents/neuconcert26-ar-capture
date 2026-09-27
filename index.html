@@ -3,6 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU WebAR Check-in</title>
+    <!-- A-Frame & MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
@@ -14,10 +15,10 @@
         bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
-        width: 75px;
-        height: 75px;
+        width: 72px;
+        height: 72px;
         background: #ffffff;
-        border: 6px solid rgba(255, 255, 255, 0.7);
+        border: 5px solid rgba(255, 255, 255, 0.7);
         border-radius: 50%;
         z-index: 10000;
         cursor: pointer;
@@ -72,9 +73,12 @@
       <button id="close-modal-btn">Chụp lại</button>
     </div>
 
-    <!-- Cấu hình lọc chống rung tối đa và tăng độ bám ảnh -->
+    <!-- 
+      - Tắt hoàn toàn khung quét trắng gây lag: uiLoading: no; uiScanning: no;
+      - Chống rung tối đa: filterMinCF: 0.0001; filterBeta: 0.001;
+    -->
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 2; missTolerance: 5; uiLoading: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 5; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
       renderer="colorManagement: true, preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
       vr-mode-ui="enabled: false"
@@ -86,21 +90,30 @@
 
       <a-camera id="mainCamera" position="0 0 0" look-controls="enabled: false"></a-camera>
 
+      <!-- TARGET 0: Nhận diện ảnh thứ 1 (Nền xanh hoặc trắng) -->
       <a-entity mindar-image-target="targetIndex: 0">
-        <!-- Khung cha: Khóa chặt góc nhìn luôn hướng về phía camera -->
         <a-entity look-at="#mainCamera" position="0 0 0.1">
-          <!-- 
-            Khung con: Thực hiện hiệu ứng Game Floating
-            - Bay bồng bềnh lên xuống siêu mượt mà không bị xé/khựng
-            - Nghiêng nhẹ 3 độ như nhịp thở của nhân vật game
-          -->
           <a-image
             src="#charImg"
             position="0 0 0"
-            scale="1.8 1.8 1.8"
+            scale="0.75 0.75 0.75"
             transparent="true"
-            animation__float="property: position; to: 0 0.22 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
-            animation__sway="property: rotation; to: 0 0 4; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
+            animation__float="property: position; to: 0 0.12 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
+            animation__sway="property: rotation; to: 0 0 3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
+          </a-image>
+        </a-entity>
+      </a-entity>
+
+      <!-- TARGET 1: Nhận diện ảnh thứ 2 (Ảnh còn lại) -->
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-entity look-at="#mainCamera" position="0 0 0.1">
+          <a-image
+            src="#charImg"
+            position="0 0 0"
+            scale="0.75 0.75 0.75"
+            transparent="true"
+            animation__float="property: position; to: 0 0.12 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine;"
+            animation__sway="property: rotation; to: 0 0 3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine;">
           </a-image>
         </a-entity>
       </a-entity>
