@@ -10,7 +10,6 @@
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
 
-      /* Khung chứa các nút điều khiển - đảm bảo luôn click được */
       #ui-container {
         position: fixed;
         top: 0;
@@ -21,7 +20,7 @@
         pointer-events: none;
       }
 
-      /* Nút Đổi Camera */
+      /* Nút xoay camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
@@ -49,7 +48,7 @@
         transform: scale(0.9);
       }
 
-      /* Nút Chụp */
+      /* Nút chụp ảnh */
       #capture-btn {
         pointer-events: auto;
         position: absolute;
@@ -69,7 +68,6 @@
         transform: translateX(-50%) scale(0.9);
       }
 
-      /* Modal hiển thị ảnh đã chụp */
       #photo-modal {
         display: none;
         position: fixed;
@@ -108,7 +106,6 @@
     </style>
   </head>
   <body>
-    <!-- Lớp UI độc lập -->
     <div id="ui-container">
       <button id="flip-btn" type="button" aria-label="Đổi camera">
         <svg viewBox="0 0 24 24">
@@ -178,7 +175,7 @@
         photoModal.style.display = 'none';
       });
 
-      // Cơ chế đổi Camera chuẩn xác cho MindAR
+      // Cơ chế đổi camera can thiệp thẳng vào thẻ video đang chạy
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -187,55 +184,68 @@
         isSwitching = true;
         flipBtn.style.opacity = '0.5';
 
-        const sceneEl = document.querySelector('a-scene');
-        const arSystem = sceneEl.systems['mindar-image-system'];
+        const videoEl = document.querySelector('video');
+        if (!videoEl) {
+          isSwitching = false;
+          flipBtn.style.opacity = '1';
+          return;
+        }
 
-        currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        const nextMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
         try {
-          if (arSystem) {
-            arSystem.stop();
-          }
+          // Lấy danh sách thiết bị camera khả dụng
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(d => d.kind === 'videoinput');
 
-          const oldVideo = document.querySelector('video');
-          if (oldVideo && oldVideo.srcObject) {
-            oldVideo.srcObject.getTracks().forEach(track => track.stop());
-          }
-
-          const stream = await navigator.mediaDevices.getUserMedia({
+          let constraints = {
             video: {
-              facingMode: { ideal: currentFacingMode },
+              facingMode: { exact: nextMode },
               width: { ideal: 1280 },
               height: { ideal: 720 }
             },
             audio: false
-          });
+          };
 
-          if (oldVideo) {
-            oldVideo.srcObject = stream;
-            await oldVideo.play();
-
-            // Lật gương video hiển thị khi dùng cam trước
-            if (currentFacingMode === 'user') {
-              oldVideo.style.transform = 'scaleX(-1)';
-            } else {
-              oldVideo.style.transform = 'scaleX(1)';
-            }
+          let newStream;
+          try {
+            newStream = await navigator.mediaDevices.getUserMedia(constraints);
+          } catch (errFallback) {
+            // Fallback nếu máy không hỗ trợ exact constraint
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: nextMode },
+              audio: false
+            });
           }
 
-          if (arSystem) {
-            arSystem.start();
+          // Dừng stream camera cũ
+          if (videoEl.srcObject) {
+            videoEl.srcObject.getTracks().forEach(track => track.stop());
           }
+
+          // Gán luồng camera mới trực tiếp vào video của MindAR
+          videoEl.srcObject = newStream;
+          await videoEl.play();
+
+          currentFacingMode = nextMode;
+
+          // Lật gương ngang nếu là cam trước để nhìn tự nhiên như soi gương
+          if (currentFacingMode === 'user') {
+            videoEl.style.transform = 'scaleX(-1)';
+          } else {
+            videoEl.style.transform = 'scaleX(1)';
+          }
+
         } catch (err) {
-          alert("Không thể mở camera trước trên thiết bị này: " + err.message);
-          currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+          console.error("Lỗi đổi camera:", err);
+          alert("Không thể lật camera: " + err.message);
         } finally {
           isSwitching = false;
           flipBtn.style.opacity = '1';
         }
       });
 
-      // Cơ chế Chụp ảnh
+      // Chụp ảnh giữ nguyên chiều cho cả 2 camera
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
