@@ -19,7 +19,7 @@
         pointer-events: none;
       }
 
-      /* Nút lật camera trước / sau */
+      /* Nút xoay camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
@@ -84,19 +84,7 @@
         z-index: 10003;
       }
 
-      /* Khung Photobooth chứa các thành phần */
-      #photobooth-wrapper {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        display: none; /* Chỉ mở khi quét trúng */
-        z-index: 10001;
-      }
-
-      /* Khung viền tĩnh PNG */
+      /* KHUNG PHOTOBOOTH CHUYỂN ĐỘNG BỒNG BỀNH TỰ NHIÊN */
       #photobooth-frame {
         position: absolute;
         top: 0;
@@ -104,34 +92,31 @@
         width: 100%;
         height: 100%;
         object-fit: fill;
+        pointer-events: none;
+        display: none; /* Chỉ mở khi quét trúng */
+        z-index: 10001;
+        /* Áp dụng hiệu ứng nhún nhảy, trôi nhẹ và thở nhịp nhàng */
+        animation: subtleFloat 3.2s ease-in-out infinite alternate;
+        transform-origin: center center;
       }
 
-      /* Quả cầu Mascot chuyển động bồng bềnh (Góc trên bên phải) */
-      #animated-orb-top {
-        position: absolute;
-        top: 13%;
-        right: 8%;
-        width: 110px;
-        height: auto;
-        filter: drop-shadow(0 6px 14px rgba(0, 200, 255, 0.4));
-        animation: floatOrb 2.6s ease-in-out infinite alternate, swayOrb 3.4s ease-in-out infinite alternate;
-        z-index: 10002;
+      /* Chuyển động nhẹ nhàng, êm dịu không làm người chụp bị chóng mặt */
+      @keyframes subtleFloat {
+        0% {
+          transform: translateY(0px) translateX(0px) scale(1) rotate(0deg);
+        }
+        33% {
+          transform: translateY(-8px) translateX(4px) scale(1.012) rotate(0.6deg);
+        }
+        66% {
+          transform: translateY(-4px) translateX(-3px) scale(0.995) rotate(-0.5deg);
+        }
+        100% {
+          transform: translateY(-12px) translateX(2px) scale(1.015) rotate(0.8deg);
+        }
       }
 
-      /* Animation bồng bềnh lơ lửng */
-      @keyframes floatOrb {
-        0% { transform: translateY(0px) scale(1); }
-        50% { transform: translateY(-12px) scale(1.03); }
-        100% { transform: translateY(-22px) scale(1); }
-      }
-
-      /* Animation nghiêng nhẹ tự nhiên */
-      @keyframes swayOrb {
-        0% { rotate: -4deg; }
-        100% { rotate: 5deg; }
-      }
-
-      /* Modal xem lại ảnh */
+      /* Popup xem & tải ảnh */
       #photo-modal {
         display: none;
         position: fixed;
@@ -180,16 +165,13 @@
         </svg>
       </button>
 
-      <!-- Khung Photobooth kết hợp viền tĩnh + quả cầu chuyển động -->
-      <div id="photobooth-wrapper">
-        <img id="photobooth-frame" src="./frame.png" alt="Frame" />
-        <img id="animated-orb-top" src="./character.png" alt="Orb Mascot" />
-      </div>
+      <!-- Khung viền Photobooth với Animation nhè nhẹ -->
+      <img id="photobooth-frame" src="./frame.png" alt="Photobooth Frame" />
 
       <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
     </div>
 
-    <!-- Modal xem & lưu ảnh -->
+    <!-- Modal Xem lại ảnh -->
     <div id="photo-modal">
       <img id="captured-img" src="" alt="Captured Image" />
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
@@ -215,9 +197,7 @@
       const photoModal = document.getElementById('photo-modal');
       const capturedImg = document.getElementById('captured-img');
       const closeModalBtn = document.getElementById('close-modal-btn');
-      const photoboothWrapper = document.getElementById('photobooth-wrapper');
       const photoboothFrame = document.getElementById('photobooth-frame');
-      const animatedOrbTop = document.getElementById('animated-orb-top');
       const scanHint = document.getElementById('scan-hint');
 
       const target0 = document.getElementById('target0');
@@ -225,11 +205,11 @@
 
       let isFrameActive = false;
 
-      // Kích hoạt khung và các quả cầu chuyển động
+      // Quét trúng target -> Mở khung Photobooth động
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
-          photoboothWrapper.style.display = 'block';
+          photoboothFrame.style.display = 'block';
           scanHint.style.opacity = '0';
         }
       };
@@ -297,7 +277,7 @@
         }
       });
 
-      // Chụp ảnh: Kết hợp luồng camera + Khung viền + Vị trí thực tế của Quả cầu động
+      // Chụp ảnh: Chụp camera + Chụp chính xác trạng thái chuyển động của khung
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -312,7 +292,7 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // Vẽ video camera nền
+        // 1. Vẽ camera nền chuẩn tỉ lệ
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -339,14 +319,31 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // Nếu photobooth đã mở, vẽ đè khung và quả cầu động lên
-        if (isFrameActive && photoboothWrapper.style.display !== 'none') {
-          // 1. Vẽ khung viền tĩnh
-          ctx.drawImage(photoboothFrame, 0, 0, w, h);
+        // 2. Vẽ khung Photobooth theo đúng ma trận chuyển động lúc nhấn chụp
+        if (isFrameActive && photoboothFrame.style.display !== 'none') {
+          ctx.save();
+          // Lấy ma trận chuyển động transform hiện tại của phần tử ảnh
+          const style = window.getComputedStyle(photoboothFrame);
+          const matrix = style.transform;
 
-          // 2. Chụp chính xác tọa độ hiện tại của quả cầu đang bồng bềnh
-          const orbRect = animatedOrbTop.getBoundingClientRect();
-          ctx.drawImage(animatedOrbTop, orbRect.left, orbRect.top, orbRect.width, orbRect.height);
+          if (matrix && matrix !== 'none') {
+            // Tách ma trận 2D: matrix(a, b, c, d, tx, ty)
+            const values = matrix.split('(')[1].split(')')[0].split(',');
+            const a = parseFloat(values[0]);
+            const b = parseFloat(values[1]);
+            const c = parseFloat(values[2]);
+            const d = parseFloat(values[3]);
+            const tx = parseFloat(values[4]);
+            const ty = parseFloat(values[5]);
+
+            // Căn gốc xoay vào giữa màn hình
+            ctx.translate(w / 2 + tx, h / 2 + ty);
+            ctx.transform(a, b, c, d, 0, 0);
+            ctx.drawImage(photoboothFrame, -w / 2, -h / 2, w, h);
+          } else {
+            ctx.drawImage(photoboothFrame, 0, 0, w, h);
+          }
+          ctx.restore();
         }
 
         capturedImg.src = canvas.toDataURL('image/png');
