@@ -68,7 +68,7 @@
         transform: translateX(-50%) scale(0.9);
       }
 
-      /* Dòng nhắc quét */
+      /* Nhắc nhở quét */
       #scan-hint {
         position: absolute;
         top: 30px;
@@ -84,33 +84,50 @@
         z-index: 10003;
       }
 
-      /* KHUNG PHOTOBOOTH HIỂN THỊ ĐẦY ĐỦ 100% KHÔNG BỊ CẮT TRÊN/DƯỚI */
-      #photobooth-frame {
+      /* CONTAINER KHUNG PHOTOBOOTH */
+      #photobooth-container {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        /* contain: Giữ trọn 100% các chi tiết trên/dưới, không cắt mép */
-        object-fit: contain;
-        object-position: center center;
         pointer-events: none;
         display: none;
         z-index: 10001;
-        animation: subtleFloat 3.2s ease-in-out infinite alternate;
-        transform-origin: center center;
       }
 
-      @keyframes subtleFloat {
-        0% {
-          transform: translateY(0px) scale(1);
-        }
-        50% {
-          transform: translateY(-8px) scale(1.008);
-        }
-        100% {
-          transform: translateY(-14px) scale(1.012);
-        }
+      /* Cụm Đỉnh Trên: Ghim nóc, căn giữa, không bao giờ bị cắt chữ CONCERT */
+      #frame-top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 38%;
+        object-fit: cover;
+        object-position: top center;
+        animation: floatTop 3.5s ease-in-out infinite alternate;
+      }
+
+      /* Cụm Chân Dưới: Ghim đáy, neo sát mép trái để 2 quả cầu chạm kính */
+      #frame-bottom {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 62%;
+        object-fit: cover;
+        object-position: bottom left;
+        animation: floatBottom 3.2s ease-in-out infinite alternate;
+      }
+
+      @keyframes floatTop {
+        0% { transform: translateY(0px) scale(1); }
+        100% { transform: translateY(-7px) scale(1.008); }
+      }
+
+      @keyframes floatBottom {
+        0% { transform: translateY(0px) scale(1); }
+        100% { transform: translateY(6px) scale(1.008); }
       }
 
       /* Modal xem lại ảnh */
@@ -162,7 +179,10 @@
         </svg>
       </button>
 
-      <img id="photobooth-frame" src="./frame.png" alt="Photobooth Frame" />
+      <div id="photobooth-container">
+        <img id="frame-top" src="./frame.png" alt="Frame Top" />
+        <img id="frame-bottom" src="./frame.png" alt="Frame Bottom" />
+      </div>
 
       <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
     </div>
@@ -192,7 +212,9 @@
       const photoModal = document.getElementById('photo-modal');
       const capturedImg = document.getElementById('captured-img');
       const closeModalBtn = document.getElementById('close-modal-btn');
-      const photoboothFrame = document.getElementById('photobooth-frame');
+      const photoboothContainer = document.getElementById('photobooth-container');
+      const frameTop = document.getElementById('frame-top');
+      const frameBottom = document.getElementById('frame-bottom');
       const scanHint = document.getElementById('scan-hint');
 
       const target0 = document.getElementById('target0');
@@ -203,7 +225,7 @@
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
-          photoboothFrame.style.display = 'block';
+          photoboothContainer.style.display = 'block';
           scanHint.style.opacity = '0';
         }
       };
@@ -271,7 +293,7 @@
         }
       });
 
-      // Chụp ảnh: Đồng bộ chính xác theo tỷ lệ CONTAIN (toàn bộ khung hình nguyên vẹn)
+      // Chụp ảnh: Ghép chính xác các phần tử hiển thị trên màn hình
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -286,7 +308,7 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // 1. Vẽ camera nền
+        // 1. Vẽ luồng camera
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -313,46 +335,17 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // 2. Vẽ khung Photobooth theo thuật toán object-fit: contain (không bị cắt trên/dưới)
-        if (isFrameActive && photoboothFrame.style.display !== 'none') {
-          ctx.save();
-          const style = window.getComputedStyle(photoboothFrame);
-          const matrix = style.transform;
+        // 2. Chụp chính xác 2 mảng frameTop và frameBottom
+        if (isFrameActive && photoboothContainer.style.display !== 'none') {
+          const drawElem = (el) => {
+            const rect = el.getBoundingClientRect();
+            ctx.save();
+            ctx.drawImage(el, rect.left, rect.top, rect.width, rect.height);
+            ctx.restore();
+          };
 
-          const fW = photoboothFrame.naturalWidth || w;
-          const fH = photoboothFrame.naturalHeight || h;
-          const fRatio = fW / fH;
-
-          // Tính kích thước contain
-          let drawW, drawH, drawX, drawY;
-          if (fRatio > screenRatio) {
-            drawW = w;
-            drawH = w / fRatio;
-            drawX = 0;
-            drawY = (h - drawH) / 2;
-          } else {
-            drawH = h;
-            drawW = h * fRatio;
-            drawX = (w - drawW) / 2;
-            drawY = 0;
-          }
-
-          if (matrix && matrix !== 'none') {
-            const values = matrix.split('(')[1].split(')')[0].split(',');
-            const a = parseFloat(values[0]);
-            const b = parseFloat(values[1]);
-            const c = parseFloat(values[2]);
-            const d = parseFloat(values[3]);
-            const tx = parseFloat(values[4]);
-            const ty = parseFloat(values[5]);
-
-            ctx.translate(w / 2 + tx, h / 2 + ty);
-            ctx.transform(a, b, c, d, 0, 0);
-            ctx.drawImage(photoboothFrame, -drawW / 2, -drawH / 2, drawW, drawH);
-          } else {
-            ctx.drawImage(photoboothFrame, drawX, drawY, drawW, drawH);
-          }
-          ctx.restore();
+          drawElem(frameTop);
+          drawElem(frameBottom);
         }
 
         capturedImg.src = canvas.toDataURL('image/png');
