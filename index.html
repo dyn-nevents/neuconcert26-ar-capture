@@ -68,7 +68,7 @@
         transform: translateX(-50%) scale(0.9);
       }
 
-      /* Dòng nhắc hướng dẫn */
+      /* Nhắc nhở quét */
       #scan-hint {
         position: absolute;
         top: 30px;
@@ -84,39 +84,37 @@
         z-index: 10003;
       }
 
-      /* KHUNG PHOTOBOOTH CHUYỂN ĐỘNG BỒNG BỀNH TỰ NHIÊN */
+      /* KHUNG PHOTOBOOTH ÉP SÁT MÉP TRÁI PHẢI */
       #photobooth-frame {
         position: absolute;
         top: 0;
-        left: 0;
-        width: 100%;
+        left: -3%;            /* Dạt sát lề trái */
+        width: 106%;          /* Tràn viền nhẹ để quả cầu chạm hẳn mép kính */
         height: 100%;
         object-fit: fill;
         pointer-events: none;
-        display: none; /* Chỉ mở khi quét trúng */
+        display: none;
         z-index: 10001;
-        /* Áp dụng hiệu ứng nhún nhảy, trôi nhẹ và thở nhịp nhàng */
         animation: subtleFloat 3.2s ease-in-out infinite alternate;
         transform-origin: center center;
       }
 
-      /* Chuyển động nhẹ nhàng, êm dịu không làm người chụp bị chóng mặt */
       @keyframes subtleFloat {
         0% {
           transform: translateY(0px) translateX(0px) scale(1) rotate(0deg);
         }
         33% {
-          transform: translateY(-8px) translateX(4px) scale(1.012) rotate(0.6deg);
+          transform: translateY(-8px) translateX(3px) scale(1.01) rotate(0.5deg);
         }
         66% {
-          transform: translateY(-4px) translateX(-3px) scale(0.995) rotate(-0.5deg);
+          transform: translateY(-4px) translateX(-2px) scale(0.995) rotate(-0.4deg);
         }
         100% {
-          transform: translateY(-12px) translateX(2px) scale(1.015) rotate(0.8deg);
+          transform: translateY(-11px) translateX(2px) scale(1.012) rotate(0.6deg);
         }
       }
 
-      /* Popup xem & tải ảnh */
+      /* Modal xem & tải ảnh */
       #photo-modal {
         display: none;
         position: fixed;
@@ -165,13 +163,11 @@
         </svg>
       </button>
 
-      <!-- Khung viền Photobooth với Animation nhè nhẹ -->
       <img id="photobooth-frame" src="./frame.png" alt="Photobooth Frame" />
 
       <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
     </div>
 
-    <!-- Modal Xem lại ảnh -->
     <div id="photo-modal">
       <img id="captured-img" src="" alt="Captured Image" />
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
@@ -205,7 +201,6 @@
 
       let isFrameActive = false;
 
-      // Quét trúng target -> Mở khung Photobooth động
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
@@ -277,7 +272,7 @@
         }
       });
 
-      // Chụp ảnh: Chụp camera + Chụp chính xác trạng thái chuyển động của khung
+      // Chụp ảnh: Đồng bộ vị trí tràn viền và ma trận chuyển động
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -292,7 +287,7 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // 1. Vẽ camera nền chuẩn tỉ lệ
+        // Vẽ luồng camera
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -319,15 +314,17 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // 2. Vẽ khung Photobooth theo đúng ma trận chuyển động lúc nhấn chụp
+        // Vẽ khung đè lên (tính toán tỉ lệ tràn viền 106% tương tự màn hình hiển thị)
         if (isFrameActive && photoboothFrame.style.display !== 'none') {
           ctx.save();
-          // Lấy ma trận chuyển động transform hiện tại của phần tử ảnh
           const style = window.getComputedStyle(photoboothFrame);
           const matrix = style.transform;
 
+          const frameW = w * 1.06;
+          const frameH = h;
+          const frameX = -w * 0.03;
+
           if (matrix && matrix !== 'none') {
-            // Tách ma trận 2D: matrix(a, b, c, d, tx, ty)
             const values = matrix.split('(')[1].split(')')[0].split(',');
             const a = parseFloat(values[0]);
             const b = parseFloat(values[1]);
@@ -336,12 +333,11 @@
             const tx = parseFloat(values[4]);
             const ty = parseFloat(values[5]);
 
-            // Căn gốc xoay vào giữa màn hình
             ctx.translate(w / 2 + tx, h / 2 + ty);
             ctx.transform(a, b, c, d, 0, 0);
-            ctx.drawImage(photoboothFrame, -w / 2, -h / 2, w, h);
+            ctx.drawImage(photoboothFrame, -frameW / 2 + (frameX + (frameW - w) / 2), -frameH / 2, frameW, frameH);
           } else {
-            ctx.drawImage(photoboothFrame, 0, 0, w, h);
+            ctx.drawImage(photoboothFrame, frameX, 0, frameW, frameH);
           }
           ctx.restore();
         }
