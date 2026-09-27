@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>NEU WebAR Check-in</title>
+    <!-- Thư viện A-Frame và MindAR Image Tracking -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      /* Nút chụp ảnh dạng hình tròn viền nổi */
+      #capture-btn {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 70px;
+        height: 70px;
+        background-color: #ffffff;
+        border: 5px solid rgba(0, 0, 0, 0.25);
+        border-radius: 50%;
+        z-index: 9999;
+        cursor: pointer;
+        outline: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      }
+      #capture-btn:active {
+        transform: translateX(-50%) scale(0.9);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Nút chụp ảnh check-in -->
+    <button id="capture-btn" title="Chụp ảnh"></button>
+
+    <a-scene
+      mindar-image="imageTargetSrc: ./targets.mind;"
+      color-space="sRGB"
+      renderer="colorManagement: true, preserveDrawingBuffer: true"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+
+      <a-assets>
+        <img id="charImg" src="./character.png" />
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <!-- Target 0: Bắt ảnh Logo NEU và hiển thị standee nhân vật PNG -->
+      <a-entity mindar-image-target="targetIndex: 0">
+        <!-- Tấm ảnh PNG dựng đứng trên logo và tự động xoay tròn quanh trục Y -->
+        <a-image
+          src="#charImg"
+          position="0 0 0.1"
+          scale="0.8 0.8 0.8"
+          rotation="90 0 0"
+          transparent="true"
+          animation="property: rotation; to: 90 360 0; loop: true; dur: 8000; easing: linear;">
+        </a-image>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      const captureBtn = document.getElementById('capture-btn');
+      captureBtn.addEventListener('click', () => {
+        const sceneEl = document.querySelector('a-scene');
+        const video = document.querySelector('video');
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || window.innerWidth;
+        canvas.height = video.videoHeight || window.innerHeight;
+        const ctx = canvas.getContext('2d');
+
+        // Vẽ khung camera thực tế
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Vẽ lớp AR (ảnh nhân vật PNG)
+        const webglCanvas = sceneEl.components.screenshot.getCanvas('perspective');
+        ctx.drawImage(webglCanvas, 0, 0, canvas.width, canvas.height);
+
+        // Tự động tải ảnh về máy
+        const dataURL = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = 'NEU-AR-Checkin.png';
+        link.href = dataURL;
+        link.click();
+      });
+    </script>
+  </body>
+</html>
