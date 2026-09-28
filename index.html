@@ -37,6 +37,7 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         -webkit-tap-highlight-color: transparent;
         z-index: 10003;
+        transition: opacity 0.2s, transform 0.15s;
       }
       #flip-btn svg {
         width: 26px;
@@ -196,15 +197,27 @@
       }
 
       @keyframes floatTop {
-        0% { transform: translateY(0px) rotate(0deg) scale(1); }
-        50% { transform: translateY(-12px) rotate(1.2deg) scale(1.012); }
-        100% { transform: translateY(-22px) rotate(-0.8deg) scale(1.005); }
+        0% {
+          transform: translateY(0px) rotate(0deg) scale(1);
+        }
+        50% {
+          transform: translateY(-12px) rotate(1.2deg) scale(1.012);
+        }
+        100% {
+          transform: translateY(-22px) rotate(-0.8deg) scale(1.005);
+        }
       }
 
       @keyframes floatBottom {
-        0% { transform: translateY(0px) translateX(0px) scale(1); }
-        50% { transform: translateY(10px) translateX(6px) scale(1.01); }
-        100% { transform: translateY(20px) translateX(-4px) scale(1); }
+        0% {
+          transform: translateY(0px) translateX(0px) scale(1);
+        }
+        50% {
+          transform: translateY(10px) translateX(6px) scale(1.01);
+        }
+        100% {
+          transform: translateY(20px) translateX(-4px) scale(1);
+        }
       }
 
       /* Popup xem ảnh / video kết quả */
@@ -248,6 +261,7 @@
         font-size: 14px;
         cursor: pointer;
         border: none;
+        text-decoration: none;
       }
       #close-modal-btn {
         background: rgba(255, 255, 255, 0.2);
@@ -257,7 +271,6 @@
         display: none;
         background: #ffde59;
         color: #111;
-        text-decoration: none;
         line-height: 1.4;
       }
     </style>
@@ -298,7 +311,7 @@
     <!-- Modal xem & tải media -->
     <div id="media-modal">
       <img id="captured-img" src="" alt="Captured Image" />
-      <video id="captured-video" controls playsinline loop></video>
+      <video id="captured-video" controls playsinline loop webkit-playsinline></video>
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
       <div class="modal-btns">
         <button id="close-modal-btn" class="action-sub-btn" type="button">Chụp lại</button>
@@ -308,6 +321,7 @@
 
     <!-- Engine MindAR -->
     <a-scene
+      id="arScene"
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 2; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
       renderer="preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
@@ -321,6 +335,7 @@
     </a-scene>
 
     <script>
+      const sceneEl = document.getElementById('arScene');
       const flipBtn = document.getElementById('flip-btn');
       const actionBtn = document.getElementById('action-btn');
       const btnModePhoto = document.getElementById('btn-mode-photo');
@@ -352,10 +367,13 @@
       let recordInterval = null;
       let recordSeconds = 0;
       let videoRenderLoop = null;
+      let currentFacingMode = 'environment';
+      let isSwitching = false;
 
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
+      // Kích hoạt khung Photobooth
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
@@ -367,6 +385,7 @@
       target0.addEventListener('targetFound', activateFrame);
       target1.addEventListener('targetFound', activateFrame);
 
+      // Chuyển đổi Mode ẢNH / VIDEO
       btnModePhoto.addEventListener('click', () => {
         if (isRecording) return;
         currentMode = 'photo';
@@ -389,10 +408,7 @@
         capturedVideo.src = '';
       });
 
-      let currentFacingMode = 'environment';
-      let isSwitching = false;
-
-      // XỬ LÝ LẬT CAMERA CHỐNG ĐEN MÀN HÌNH (SAFE SWITCH FOR SAFARI & ANDROID)
+      // ĐỔI CAMERA BẰNG HÀM CHÍNH CHỦ CỦA MINDAR (CHỐNG SẬP VÀ ĐEN MÀN HÌNH)
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -400,69 +416,25 @@
         isSwitching = true;
         flipBtn.style.opacity = '0.4';
 
-        const videoEl = document.querySelector('video');
-        if (!videoEl) {
-          isSwitching = false;
-          flipBtn.style.opacity = '1';
-          return;
-        }
-
-        const nextMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
-
         try {
-          // 1. Tạo stream mới trước khi tắt stream cũ để tránh viewport bị ngắt tín hiệu
-          const constraints = {
-            video: {
-              facingMode: { exact: nextMode },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            },
-            audio: false
-          };
+          const arSystem = sceneEl.systems['mindar-image-system'];
+          if (arSystem && typeof arSystem.switchCamera === 'function') {
+            await arSystem.switchCamera();
+            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
-          let newStream;
-          try {
-            newStream = await navigator.mediaDevices.getUserMedia(constraints);
-          } catch (errFallback) {
-            // Dự phòng cho một số thiết bị không hỗ trợ exact facingMode
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: nextMode },
-              audio: false
-            });
-          }
-
-          // 2. Dừng các track của stream cũ
-          if (videoEl.srcObject) {
-            const oldTracks = videoEl.srcObject.getTracks();
-            oldTracks.forEach(t => t.stop());
-          }
-
-          // 3. Gán stream mới kèm thiết lập bảo đảm không bị đen hình
-          videoEl.setAttribute('autoplay', '');
-          videoEl.setAttribute('muted', '');
-          videoEl.setAttribute('playsinline', '');
-          videoEl.srcObject = newStream;
-
-          await new Promise((resolve) => {
-            videoEl.onloadedmetadata = () => {
-              videoEl.play().then(resolve).catch(resolve);
-            };
-          });
-
-          currentFacingMode = nextMode;
-
-          // Camera trước lật gương để chụp selfie tự nhiên
-          if (currentFacingMode === 'user') {
-            videoEl.style.transform = 'scaleX(-1)';
-          } else {
-            videoEl.style.transform = 'scaleX(1)';
+            // Lật gương video hiển thị khi ở camera trước
+            const videoEl = document.querySelector('video');
+            if (videoEl) {
+              videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+            }
           }
         } catch (err) {
-          console.error("Camera switch error:", err);
-          alert("Không thể chuyển đổi camera: " + (err.message || err.name));
+          console.error("Lỗi đổi camera MindAR:", err);
         } finally {
-          isSwitching = false;
-          flipBtn.style.opacity = '1';
+          setTimeout(() => {
+            isSwitching = false;
+            flipBtn.style.opacity = '1';
+          }, 600);
         }
       });
 
@@ -579,13 +551,19 @@
         renderLoop();
 
         const stream = renderCanvas.captureStream(30);
-        let mimeType = 'video/mp4';
-        if (!MediaRecorder.isTypeSupported('video/mp4')) {
-          mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+        let options = {};
+        if (window.MediaRecorder) {
+          if (MediaRecorder.isTypeSupported('video/mp4')) {
+            options = { mimeType: 'video/mp4' };
+          } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+            options = { mimeType: 'video/webm;codecs=vp9' };
+          } else if (MediaRecorder.isTypeSupported('video/webm')) {
+            options = { mimeType: 'video/webm' };
+          }
         }
 
         try {
-          mediaRecorder = new MediaRecorder(stream, { mimeType });
+          mediaRecorder = new MediaRecorder(stream, options);
         } catch (e) {
           mediaRecorder = new MediaRecorder(stream);
         }
