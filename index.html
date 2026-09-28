@@ -68,7 +68,7 @@
         transform: translateX(-50%) scale(0.9);
       }
 
-      /* Dòng nhắc hướng dẫn */
+      /* Nhắc nhở quét */
       #scan-hint {
         position: absolute;
         top: 30px;
@@ -84,7 +84,7 @@
         z-index: 10003;
       }
 
-      /* CONTAINER KHUNG PHOTOBOOTH */
+      /* KHUNG PHOTOBOOTH CHIA 2 TẦNG CHUYỂN ĐỘNG */
       #photobooth-container {
         position: absolute;
         top: 0;
@@ -96,15 +96,15 @@
         z-index: 10001;
       }
 
-      /* KHỐI TRÊN: Chứa Logo & Quả cầu vàng - CHUYỂN ĐỘNG DẬP DỀNH */
+      /* Khối Đỉnh trên: Chiếm 38% chiều cao, dập dềnh bồng bềnh */
       #wrapper-top {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: 40%;
+        height: 38%;
         overflow: hidden;
-        animation: animTop 2.8s ease-in-out infinite alternate;
+        animation: floatTop 3s ease-in-out infinite alternate;
         will-change: transform;
       }
       #frame-top {
@@ -114,15 +114,15 @@
         object-position: top center;
       }
 
-      /* KHỐI DƯỚI: Chứa 2 quả cầu mép trái & Mascot chân - CHUYỂN ĐỘNG NHÚN NHẢY */
+      /* Khối Chân dưới: Chiếm 62% chiều cao, bám sát mép trái, nhún nhẹ */
       #wrapper-bottom {
         position: absolute;
         bottom: 0;
         left: 0;
         width: 100%;
-        height: 60%;
+        height: 62%;
         overflow: hidden;
-        animation: animBottom 3.2s ease-in-out infinite alternate;
+        animation: floatBottom 3.4s ease-in-out infinite alternate;
         will-change: transform;
       }
       #frame-bottom {
@@ -132,32 +132,19 @@
         object-position: bottom left;
       }
 
-      /* Hiệu ứng chuyển động rõ nét, bồng bềnh lượn sóng */
-      @keyframes animTop {
-        0% {
-          transform: translateY(0px) rotate(0deg);
-        }
-        50% {
-          transform: translateY(-10px) rotate(0.6deg);
-        }
-        100% {
-          transform: translateY(-16px) rotate(-0.5deg);
-        }
+      @keyframes floatTop {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-7px) rotate(0.4deg); }
+        100% { transform: translateY(-13px) rotate(-0.3deg); }
       }
 
-      @keyframes animBottom {
-        0% {
-          transform: translateY(0px) translateX(0px);
-        }
-        50% {
-          transform: translateY(8px) translateX(4px);
-        }
-        100% {
-          transform: translateY(14px) translateX(-3px);
-        }
+      @keyframes floatBottom {
+        0% { transform: translateY(0px) translateX(0px); }
+        50% { transform: translateY(6px) translateX(3px); }
+        100% { transform: translateY(12px) translateX(-2px); }
       }
 
-      /* Modal xem lại ảnh */
+      /* Popup xem ảnh đã chụp */
       #photo-modal {
         display: none;
         position: fixed;
@@ -206,7 +193,6 @@
         </svg>
       </button>
 
-      <!-- Khung viền Photobooth bọc 2 khối chuyển động độc lập -->
       <div id="photobooth-container">
         <div id="wrapper-top">
           <img id="frame-top" src="./frame.png" alt="Frame Top" />
@@ -219,7 +205,6 @@
       <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
     </div>
 
-    <!-- Modal Xem lại ảnh -->
     <div id="photo-modal">
       <img id="captured-img" src="" alt="Captured Image" />
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
@@ -328,7 +313,7 @@
         }
       });
 
-      // Chụp ảnh: Chụp chính xác vị trí đang chuyển động
+      // CHỤP ẢNH CHUẨN XÁC BẰNG CANVAS CLIP (TRIỆT TIÊU 100% LỖI NHÂN ĐÔI HÌNH)
       captureBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -343,7 +328,7 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // Vẽ video nền
+        // 1. Vẽ camera nền chuẩn tỉ lệ
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -370,17 +355,62 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // Chụp chính xác vị trí thực tế của 2 khối đang nhún nhảy
+        // 2. Vẽ 2 tầng khung bằng kỹ thuật CLIP (Chỉ lấy đúng phần hiển thị)
         if (isFrameActive && photoboothContainer.style.display !== 'none') {
-          const drawLayer = (imgEl) => {
-            const rect = imgEl.getBoundingClientRect();
-            ctx.save();
-            ctx.drawImage(imgEl, rect.left, rect.top, rect.width, rect.height);
-            ctx.restore();
-          };
+          const fW = frameTop.naturalWidth || 1080;
+          const fH = frameTop.naturalHeight || 1920;
 
-          drawLayer(frameTop);
-          drawLayer(frameBottom);
+          const topH = h * 0.38;
+          const bottomH = h * 0.62;
+          const bottomY = h * 0.38;
+
+          // --- VẼ KHỐI ĐỈNH TRÊN (Chỉ vẽ trong vùng 0 -> 38% chiều cao) ---
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, w, topH);
+          ctx.clip(); // Cắt sạch phần dưới, không cho lọt mascot vào đỉnh
+
+          // Tính toán transform animation của wrapper-top
+          const styleTop = window.getComputedStyle(wrapperTop);
+          const matrixTop = styleTop.transform;
+          if (matrixTop && matrixTop !== 'none') {
+            const v = matrixTop.split('(')[1].split(')')[0].split(',');
+            ctx.transform(parseFloat(v[0]), parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]), parseFloat(v[4]), parseFloat(v[5]));
+          }
+
+          // Căn chuẩn object-fit: cover; object-position: top center;
+          const scaleTop = Math.max(w / fW, topH / fH);
+          const rWTop = fW * scaleTop;
+          const rHTop = fH * scaleTop;
+          const rXTop = (w - rWTop) / 2;
+          const rYTop = 0;
+
+          ctx.drawImage(frameTop, rXTop, rYTop, rWTop, rHTop);
+          ctx.restore();
+
+          // --- VẼ KHỐI CHÂN DƯỚI (Chỉ vẽ trong vùng 38% -> đáy) ---
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, bottomY, w, bottomH);
+          ctx.clip(); // Cắt sạch phần trên, không cho lọt chữ đỉnh vào chân
+
+          // Tính toán transform animation của wrapper-bottom
+          const styleBottom = window.getComputedStyle(wrapperBottom);
+          const matrixBottom = styleBottom.transform;
+          if (matrixBottom && matrixBottom !== 'none') {
+            const v = matrixBottom.split('(')[1].split(')')[0].split(',');
+            ctx.transform(parseFloat(v[0]), parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]), parseFloat(v[4]), parseFloat(v[5]));
+          }
+
+          // Căn chuẩn object-fit: cover; object-position: bottom left; (Sát mép trái)
+          const scaleBottom = Math.max(w / fW, bottomH / fH);
+          const rWBottom = fW * scaleBottom;
+          const rHBottom = fH * scaleBottom;
+          const rXBottom = 0; // Áp sát lề trái
+          const rYBottom = bottomY + (bottomH - rHBottom); // Áp sát lề đáy
+
+          ctx.drawImage(frameBottom, rXBottom, rYBottom, rWBottom, rHBottom);
+          ctx.restore();
         }
 
         capturedImg.src = canvas.toDataURL('image/png');
