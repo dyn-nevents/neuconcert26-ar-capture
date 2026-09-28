@@ -159,7 +159,7 @@
         z-index: 10001;
       }
 
-      /* KHỐI ĐỈNH TRÊN: Biên độ trôi dạt rõ rệt, bồng bềnh êm */
+      /* KHỐI ĐỈNH TRÊN */
       #wrapper-top {
         position: absolute;
         top: 0;
@@ -177,7 +177,7 @@
         object-position: top center;
       }
 
-      /* KHỐI CHÂN DƯỚI: Chuyển động sóng nước, dạt mép */
+      /* KHỐI CHÂN DƯỚI */
       #wrapper-bottom {
         position: absolute;
         bottom: 0;
@@ -195,29 +195,16 @@
         object-position: bottom left;
       }
 
-      /* Hiệu ứng chuyển động nhìn rõ nhưng nhịp nhàng */
       @keyframes floatTop {
-        0% {
-          transform: translateY(0px) rotate(0deg) scale(1);
-        }
-        50% {
-          transform: translateY(-12px) rotate(1.2deg) scale(1.012);
-        }
-        100% {
-          transform: translateY(-22px) rotate(-0.8deg) scale(1.005);
-        }
+        0% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(1.2deg) scale(1.012); }
+        100% { transform: translateY(-22px) rotate(-0.8deg) scale(1.005); }
       }
 
       @keyframes floatBottom {
-        0% {
-          transform: translateY(0px) translateX(0px) scale(1);
-        }
-        50% {
-          transform: translateY(10px) translateX(6px) scale(1.01);
-        }
-        100% {
-          transform: translateY(20px) translateX(-4px) scale(1);
-        }
+        0% { transform: translateY(0px) translateX(0px) scale(1); }
+        50% { transform: translateY(10px) translateX(6px) scale(1.01); }
+        100% { transform: translateY(20px) translateX(-4px) scale(1); }
       }
 
       /* Popup xem ảnh / video kết quả */
@@ -270,6 +257,8 @@
         display: none;
         background: #ffde59;
         color: #111;
+        text-decoration: none;
+        line-height: 1.4;
       }
     </style>
   </head>
@@ -356,7 +345,7 @@
       const target1 = document.getElementById('target1');
 
       let isFrameActive = false;
-      let currentMode = 'photo'; // 'photo' hoặc 'video'
+      let currentMode = 'photo';
       let isRecording = false;
       let mediaRecorder = null;
       let recordedChunks = [];
@@ -364,11 +353,9 @@
       let recordSeconds = 0;
       let videoRenderLoop = null;
 
-      // Canvas render ẩn cho cả chụp ảnh lẫn quay video
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
-      // Kích hoạt khung
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
@@ -380,7 +367,6 @@
       target0.addEventListener('targetFound', activateFrame);
       target1.addEventListener('targetFound', activateFrame);
 
-      // Chuyển đổi Mode ẢNH / VIDEO
       btnModePhoto.addEventListener('click', () => {
         if (isRecording) return;
         currentMode = 'photo';
@@ -406,13 +392,13 @@
       let currentFacingMode = 'environment';
       let isSwitching = false;
 
-      // Lật camera trước / sau
+      // XỬ LÝ LẬT CAMERA CHỐNG ĐEN MÀN HÌNH (SAFE SWITCH FOR SAFARI & ANDROID)
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (isSwitching || isRecording) return;
         isSwitching = true;
-        flipBtn.style.opacity = '0.5';
+        flipBtn.style.opacity = '0.4';
 
         const videoEl = document.querySelector('video');
         if (!videoEl) {
@@ -424,42 +410,72 @@
         const nextMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
         try {
+          // 1. Tạo stream mới trước khi tắt stream cũ để tránh viewport bị ngắt tín hiệu
           const constraints = {
-            video: { facingMode: nextMode, width: { ideal: 1080 }, height: { ideal: 720 } },
+            video: {
+              facingMode: { exact: nextMode },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
             audio: false
           };
-          const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-          if (videoEl.srcObject) {
-            videoEl.srcObject.getTracks().forEach(track => track.stop());
+
+          let newStream;
+          try {
+            newStream = await navigator.mediaDevices.getUserMedia(constraints);
+          } catch (errFallback) {
+            // Dự phòng cho một số thiết bị không hỗ trợ exact facingMode
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: nextMode },
+              audio: false
+            });
           }
+
+          // 2. Dừng các track của stream cũ
+          if (videoEl.srcObject) {
+            const oldTracks = videoEl.srcObject.getTracks();
+            oldTracks.forEach(t => t.stop());
+          }
+
+          // 3. Gán stream mới kèm thiết lập bảo đảm không bị đen hình
+          videoEl.setAttribute('autoplay', '');
+          videoEl.setAttribute('muted', '');
+          videoEl.setAttribute('playsinline', '');
           videoEl.srcObject = newStream;
-          await videoEl.play();
+
+          await new Promise((resolve) => {
+            videoEl.onloadedmetadata = () => {
+              videoEl.play().then(resolve).catch(resolve);
+            };
+          });
+
           currentFacingMode = nextMode;
 
+          // Camera trước lật gương để chụp selfie tự nhiên
           if (currentFacingMode === 'user') {
             videoEl.style.transform = 'scaleX(-1)';
           } else {
             videoEl.style.transform = 'scaleX(1)';
           }
         } catch (err) {
-          alert("Không thể lật camera: " + err.message);
+          console.error("Camera switch error:", err);
+          alert("Không thể chuyển đổi camera: " + (err.message || err.name));
         } finally {
           isSwitching = false;
           flipBtn.style.opacity = '1';
         }
       });
 
-      // Hàm vẽ từng khung hình kết hợp Camera + Khung AR (Dùng cho cả Chụp & Quay)
+      // Hàm vẽ composite Camera + Khung AR
       function drawComposedFrame() {
         const video = document.querySelector('video');
-        if (!video) return;
+        if (!video || video.readyState < 2) return;
 
         const w = window.innerWidth;
         const h = window.innerHeight;
         renderCanvas.width = w;
         renderCanvas.height = h;
 
-        // 1. Vẽ Camera Nền
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -486,7 +502,6 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // 2. Vẽ 2 khối AR Đỉnh & Chân
         if (isFrameActive && photoboothContainer.style.display !== 'none') {
           const fW = frameTop.naturalWidth || 1080;
           const fH = frameTop.naturalHeight || 1920;
@@ -494,7 +509,7 @@
           const bottomH = h * 0.62;
           const bottomY = h * 0.38;
 
-          // Đỉnh trên
+          // Khối Đỉnh trên
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
@@ -511,7 +526,7 @@
           ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
           ctx.restore();
 
-          // Chân dưới
+          // Khối Chân dưới
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
@@ -530,10 +545,8 @@
         }
       }
 
-      // Nút hành động (Chụp ảnh hoặc Quay video)
       actionBtn.addEventListener('click', () => {
         if (currentMode === 'photo') {
-          // CHẾ ĐỘ CHỤP ẢNH
           drawComposedFrame();
           capturedImg.src = renderCanvas.toDataURL('image/png');
           capturedImg.style.display = 'block';
@@ -543,7 +556,6 @@
           modalNote.innerHTML = '💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b>';
           mediaModal.style.display = 'flex';
         } else {
-          // CHẾ ĐỘ QUAY VIDEO
           if (!isRecording) {
             startRecording();
           } else {
@@ -560,7 +572,6 @@
         recordTimer.style.display = 'block';
         actionBtn.classList.add('recording');
 
-        // Bắt đầu vòng lặp vẽ liên tục 30 FPS vào Canvas
         const renderLoop = () => {
           drawComposedFrame();
           videoRenderLoop = requestAnimationFrame(renderLoop);
@@ -568,9 +579,9 @@
         renderLoop();
 
         const stream = renderCanvas.captureStream(30);
-        let mimeType = 'video/webm;codecs=vp9';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+        let mimeType = 'video/mp4';
+        if (!MediaRecorder.isTypeSupported('video/mp4')) {
+          mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
         }
 
         try {
