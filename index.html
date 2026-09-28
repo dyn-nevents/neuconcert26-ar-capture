@@ -19,6 +19,19 @@
         pointer-events: none;
       }
 
+      /* Video camera dự phòng siêu mượt khi lật sang selfie */
+      #selfie-video {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+        display: none;
+        transform: scaleX(-1); /* Lật gương selfie */
+      }
+
       /* Nút xoay camera */
       #flip-btn {
         pointer-events: auto;
@@ -64,7 +77,7 @@
         z-index: 10003;
       }
 
-      /* Điều khiển chụp / quay */
+      /* Bộ điều khiển Chụp / Quay ở đáy */
       #bottom-controls {
         pointer-events: auto;
         position: absolute;
@@ -78,6 +91,7 @@
         z-index: 10003;
       }
 
+      /* Chuyển đổi ẢNH / VIDEO */
       #mode-toggle {
         display: flex;
         gap: 20px;
@@ -100,6 +114,7 @@
         color: #ffde59;
       }
 
+      /* Nút Chụp / Quay */
       #action-btn {
         width: 74px;
         height: 74px;
@@ -133,6 +148,7 @@
         border-radius: 6px;
       }
 
+      /* Bộ đếm thời gian video */
       #record-timer {
         display: none;
         position: absolute;
@@ -157,6 +173,7 @@
         z-index: 10001;
       }
 
+      /* KHỐI ĐỈNH TRÊN */
       #wrapper-top {
         position: absolute;
         top: 0;
@@ -174,6 +191,7 @@
         object-position: top center;
       }
 
+      /* KHỐI CHÂN DƯỚI */
       #wrapper-bottom {
         position: absolute;
         bottom: 0;
@@ -203,7 +221,7 @@
         100% { transform: translateY(20px) translateX(-4px) scale(1); }
       }
 
-      /* Popup xem media */
+      /* Modal xem media */
       #media-modal {
         display: none;
         position: fixed;
@@ -259,6 +277,9 @@
     </style>
   </head>
   <body>
+    <!-- Video native độc lập cho selfie (chống 100% màn hình đen) -->
+    <video id="selfie-video" autoplay playsinline muted></video>
+
     <div id="ui-container">
       <div id="scan-hint">Hướng camera vào Logo để mở Photobooth</div>
       
@@ -299,6 +320,7 @@
       </div>
     </div>
 
+    <!-- MindAR Scene -->
     <a-scene
       id="arScene"
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 2; uiLoading: no; uiScanning: no;"
@@ -320,6 +342,7 @@
       const btnModePhoto = document.getElementById('btn-mode-photo');
       const btnModeVideo = document.getElementById('btn-mode-video');
       const recordTimer = document.getElementById('record-timer');
+      const selfieVideo = document.getElementById('selfie-video');
 
       const mediaModal = document.getElementById('media-modal');
       const capturedImg = document.getElementById('captured-img');
@@ -347,8 +370,9 @@
       let recordSeconds = 0;
       let videoRenderLoop = null;
 
-      let currentFacingMode = 'environment';
+      let isSelfieMode = false;
       let isSwitching = false;
+      let customStream = null;
 
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
@@ -386,7 +410,15 @@
         capturedVideo.src = '';
       });
 
-      // HÀM XOAY CAMERA CHỐNG LIỆT NÚT, CHỐNG ĐEN HÌNH (SAFE DUAL-CAMERA SWITCH)
+      // LẤY VIDEO ĐANG HOẠT ĐỘNG
+      function getActiveVideo() {
+        if (isSelfieMode) {
+          return selfieVideo;
+        }
+        return document.querySelector('a-scene video') || document.querySelector('video');
+      }
+
+      // XỬ LÝ ĐỔI CAMERA CHỐNG SẬP VÀ ĐEN MÀN HÌNH 100%
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -395,80 +427,56 @@
         isSwitching = true;
         flipBtn.style.opacity = '0.4';
 
-        const nextFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
-
         try {
-          // Tìm thẻ video do MindAR hoặc A-Frame tạo ra
-          let videoEl = document.querySelector('video');
-
-          // Cách 1: Thử dùng hàm switchCamera của MindAR nếu hệ thống đã sẵn sàng
-          let switchedViaMindAR = false;
-          if (sceneEl && sceneEl.systems && sceneEl.systems['mindar-image-system']) {
-            const arSystem = sceneEl.systems['mindar-image-system'];
-            if (typeof arSystem.switchCamera === 'function') {
-              try {
-                await arSystem.switchCamera();
-                switchedViaMindAR = true;
-              } catch (errMindAR) {
-                console.warn("MindAR switchCamera không khả dụng, chuyển sang chế độ luồng trực tiếp:", errMindAR);
-              }
+          if (!isSelfieMode) {
+            // CHUYỂN SANG CAMERA TRƯỚC (SELFIE)
+            // 1. Tạm dừng AR MindAR an toàn (không làm sập WebGL)
+            if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
+              sceneEl.systems['mindar-image-system'].stop();
             }
-          }
+            sceneEl.style.display = 'none';
 
-          // Cách 2: Nếu MindAR không xoay được, can thiệp trực tiếp qua getUserMedia chuẩn WebRTC
-          if (!switchedViaMindAR) {
-            const constraints = {
-              video: {
-                facingMode: { ideal: nextFacingMode },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-              },
+            // 2. Bật camera trước độc lập
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
               audio: false
-            };
+            });
+            customStream = stream;
+            selfieVideo.srcObject = stream;
+            selfieVideo.style.display = 'block';
+            await selfieVideo.play();
 
-            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+            isSelfieMode = true;
+          } else {
+            // CHUYỂN LẠI CAMERA SAU
+            if (customStream) {
+              customStream.getTracks().forEach(track => track.stop());
+              customStream = null;
+            }
+            selfieVideo.style.display = 'none';
+            selfieVideo.srcObject = null;
 
-            if (!videoEl) {
-              videoEl = document.querySelector('video');
+            sceneEl.style.display = 'block';
+            if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
+              sceneEl.systems['mindar-image-system'].start();
             }
 
-            if (videoEl) {
-              if (videoEl.srcObject) {
-                const tracks = videoEl.srcObject.getTracks();
-                tracks.forEach(track => track.stop());
-              }
-              videoEl.setAttribute('autoplay', '');
-              videoEl.setAttribute('muted', '');
-              videoEl.setAttribute('playsinline', '');
-              videoEl.setAttribute('webkit-playsinline', '');
-              videoEl.srcObject = newStream;
-              await videoEl.play();
-            }
+            isSelfieMode = false;
           }
-
-          currentFacingMode = nextFacingMode;
-
-          // Lật gương hình ảnh khi ở camera trước
-          const activeVideo = document.querySelector('video');
-          if (activeVideo) {
-            activeVideo.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
-          }
-
-        } catch (error) {
-          console.error("Lỗi chuyển đổi camera:", error);
-          alert("Không thể lật camera: " + (error.message || error.name));
+        } catch (err) {
+          console.error("Camera flip error:", err);
+          alert("Không thể chuyển đổi camera: " + err.message);
         } finally {
-          // Bắt buộc mở lại nút bấm sau 400ms để không bao giờ bị liệt
           setTimeout(() => {
             isSwitching = false;
             flipBtn.style.opacity = '1';
-          }, 400);
+          }, 300);
         }
       });
 
-      // Hàm vẽ ghép Camera và Khung AR
+      // Vẽ Camera + Khung AR
       function drawComposedFrame() {
-        const video = document.querySelector('video');
+        const video = getActiveVideo();
         if (!video || video.readyState < 2) return;
 
         const w = window.innerWidth;
@@ -495,7 +503,7 @@
         }
 
         ctx.save();
-        if (currentFacingMode === 'user') {
+        if (isSelfieMode) {
           ctx.translate(w, 0);
           ctx.scale(-1, 1);
         }
@@ -509,7 +517,7 @@
           const bottomH = h * 0.62;
           const bottomY = h * 0.38;
 
-          // Khối đỉnh
+          // Khối Đỉnh trên
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
@@ -526,7 +534,7 @@
           ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
           ctx.restore();
 
-          // Khối chân
+          // Khối Chân dưới
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
