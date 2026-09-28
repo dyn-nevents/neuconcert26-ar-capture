@@ -37,7 +37,7 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         -webkit-tap-highlight-color: transparent;
         z-index: 10003;
-        transition: opacity 0.2s, transform 0.15s;
+        transition: transform 0.15s ease, opacity 0.2s;
       }
       #flip-btn svg {
         width: 26px;
@@ -64,7 +64,7 @@
         z-index: 10003;
       }
 
-      /* Bộ điều khiển Chụp / Quay ở đáy */
+      /* Điều khiển chụp / quay */
       #bottom-controls {
         pointer-events: auto;
         position: absolute;
@@ -78,7 +78,6 @@
         z-index: 10003;
       }
 
-      /* Bộ chuyển đổi chế độ ẢNH / VIDEO */
       #mode-toggle {
         display: flex;
         gap: 20px;
@@ -101,7 +100,6 @@
         color: #ffde59;
       }
 
-      /* Nút Chụp / Nút Quay */
       #action-btn {
         width: 74px;
         height: 74px;
@@ -135,7 +133,6 @@
         border-radius: 6px;
       }
 
-      /* Đồng hồ đếm thời gian quay video */
       #record-timer {
         display: none;
         position: absolute;
@@ -148,7 +145,7 @@
         font-weight: bold;
       }
 
-      /* CONTAINER KHUNG PHOTOBOOTH */
+      /* KHUNG PHOTOBOOTH */
       #photobooth-container {
         position: absolute;
         top: 0;
@@ -160,7 +157,6 @@
         z-index: 10001;
       }
 
-      /* KHỐI ĐỈNH TRÊN */
       #wrapper-top {
         position: absolute;
         top: 0;
@@ -178,7 +174,6 @@
         object-position: top center;
       }
 
-      /* KHỐI CHÂN DƯỚI */
       #wrapper-bottom {
         position: absolute;
         bottom: 0;
@@ -197,30 +192,18 @@
       }
 
       @keyframes floatTop {
-        0% {
-          transform: translateY(0px) rotate(0deg) scale(1);
-        }
-        50% {
-          transform: translateY(-12px) rotate(1.2deg) scale(1.012);
-        }
-        100% {
-          transform: translateY(-22px) rotate(-0.8deg) scale(1.005);
-        }
+        0% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(1.2deg) scale(1.012); }
+        100% { transform: translateY(-22px) rotate(-0.8deg) scale(1.005); }
       }
 
       @keyframes floatBottom {
-        0% {
-          transform: translateY(0px) translateX(0px) scale(1);
-        }
-        50% {
-          transform: translateY(10px) translateX(6px) scale(1.01);
-        }
-        100% {
-          transform: translateY(20px) translateX(-4px) scale(1);
-        }
+        0% { transform: translateY(0px) translateX(0px) scale(1); }
+        50% { transform: translateY(10px) translateX(6px) scale(1.01); }
+        100% { transform: translateY(20px) translateX(-4px) scale(1); }
       }
 
-      /* Popup xem ảnh / video kết quả */
+      /* Popup xem media */
       #media-modal {
         display: none;
         position: fixed;
@@ -285,7 +268,6 @@
         </svg>
       </button>
 
-      <!-- Khung viền Photobooth 2 tầng động -->
       <div id="photobooth-container">
         <div id="wrapper-top">
           <img id="frame-top" src="./frame.png" alt="Frame Top" />
@@ -295,7 +277,6 @@
         </div>
       </div>
 
-      <!-- Điều khiển Đáy -->
       <div id="bottom-controls">
         <div id="record-timer">00:00</div>
         <button id="action-btn" type="button">
@@ -308,7 +289,6 @@
       </div>
     </div>
 
-    <!-- Modal xem & tải media -->
     <div id="media-modal">
       <img id="captured-img" src="" alt="Captured Image" />
       <video id="captured-video" controls playsinline loop webkit-playsinline></video>
@@ -319,7 +299,6 @@
       </div>
     </div>
 
-    <!-- Engine MindAR -->
     <a-scene
       id="arScene"
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 2; uiLoading: no; uiScanning: no;"
@@ -367,13 +346,13 @@
       let recordInterval = null;
       let recordSeconds = 0;
       let videoRenderLoop = null;
+
       let currentFacingMode = 'environment';
       let isSwitching = false;
 
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
-      // Kích hoạt khung Photobooth
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
@@ -385,7 +364,6 @@
       target0.addEventListener('targetFound', activateFrame);
       target1.addEventListener('targetFound', activateFrame);
 
-      // Chuyển đổi Mode ẢNH / VIDEO
       btnModePhoto.addEventListener('click', () => {
         if (isRecording) return;
         currentMode = 'photo';
@@ -408,37 +386,87 @@
         capturedVideo.src = '';
       });
 
-      // ĐỔI CAMERA BẰNG HÀM CHÍNH CHỦ CỦA MINDAR (CHỐNG SẬP VÀ ĐEN MÀN HÌNH)
+      // HÀM XOAY CAMERA CHỐNG LIỆT NÚT, CHỐNG ĐEN HÌNH (SAFE DUAL-CAMERA SWITCH)
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
+
         if (isSwitching || isRecording) return;
         isSwitching = true;
         flipBtn.style.opacity = '0.4';
 
-        try {
-          const arSystem = sceneEl.systems['mindar-image-system'];
-          if (arSystem && typeof arSystem.switchCamera === 'function') {
-            await arSystem.switchCamera();
-            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        const nextFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
-            // Lật gương video hiển thị khi ở camera trước
-            const videoEl = document.querySelector('video');
-            if (videoEl) {
-              videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+        try {
+          // Tìm thẻ video do MindAR hoặc A-Frame tạo ra
+          let videoEl = document.querySelector('video');
+
+          // Cách 1: Thử dùng hàm switchCamera của MindAR nếu hệ thống đã sẵn sàng
+          let switchedViaMindAR = false;
+          if (sceneEl && sceneEl.systems && sceneEl.systems['mindar-image-system']) {
+            const arSystem = sceneEl.systems['mindar-image-system'];
+            if (typeof arSystem.switchCamera === 'function') {
+              try {
+                await arSystem.switchCamera();
+                switchedViaMindAR = true;
+              } catch (errMindAR) {
+                console.warn("MindAR switchCamera không khả dụng, chuyển sang chế độ luồng trực tiếp:", errMindAR);
+              }
             }
           }
-        } catch (err) {
-          console.error("Lỗi đổi camera MindAR:", err);
+
+          // Cách 2: Nếu MindAR không xoay được, can thiệp trực tiếp qua getUserMedia chuẩn WebRTC
+          if (!switchedViaMindAR) {
+            const constraints = {
+              video: {
+                facingMode: { ideal: nextFacingMode },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              },
+              audio: false
+            };
+
+            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            if (!videoEl) {
+              videoEl = document.querySelector('video');
+            }
+
+            if (videoEl) {
+              if (videoEl.srcObject) {
+                const tracks = videoEl.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+              }
+              videoEl.setAttribute('autoplay', '');
+              videoEl.setAttribute('muted', '');
+              videoEl.setAttribute('playsinline', '');
+              videoEl.setAttribute('webkit-playsinline', '');
+              videoEl.srcObject = newStream;
+              await videoEl.play();
+            }
+          }
+
+          currentFacingMode = nextFacingMode;
+
+          // Lật gương hình ảnh khi ở camera trước
+          const activeVideo = document.querySelector('video');
+          if (activeVideo) {
+            activeVideo.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+          }
+
+        } catch (error) {
+          console.error("Lỗi chuyển đổi camera:", error);
+          alert("Không thể lật camera: " + (error.message || error.name));
         } finally {
+          // Bắt buộc mở lại nút bấm sau 400ms để không bao giờ bị liệt
           setTimeout(() => {
             isSwitching = false;
             flipBtn.style.opacity = '1';
-          }, 600);
+          }, 400);
         }
       });
 
-      // Hàm vẽ composite Camera + Khung AR
+      // Hàm vẽ ghép Camera và Khung AR
       function drawComposedFrame() {
         const video = document.querySelector('video');
         if (!video || video.readyState < 2) return;
@@ -481,7 +509,7 @@
           const bottomH = h * 0.62;
           const bottomY = h * 0.38;
 
-          // Khối Đỉnh trên
+          // Khối đỉnh
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
@@ -498,7 +526,7 @@
           ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
           ctx.restore();
 
-          // Khối Chân dưới
+          // Khối chân
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
