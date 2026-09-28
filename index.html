@@ -47,28 +47,7 @@
         transform: scale(0.9);
       }
 
-      /* Nút chụp ảnh */
-      #capture-btn {
-        pointer-events: auto;
-        position: absolute;
-        bottom: 35px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 74px;
-        height: 74px;
-        background: #ffffff;
-        border: 5px solid rgba(255, 255, 255, 0.7);
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-        -webkit-tap-highlight-color: transparent;
-        z-index: 10003;
-      }
-      #capture-btn:active {
-        transform: translateX(-50%) scale(0.9);
-      }
-
-      /* Nhắc nhở quét */
+      /* Hướng dẫn quét */
       #scan-hint {
         position: absolute;
         top: 30px;
@@ -84,7 +63,91 @@
         z-index: 10003;
       }
 
-      /* KHUNG PHOTOBOOTH CHIA 2 TẦNG CHUYỂN ĐỘNG */
+      /* Bộ điều khiển Chụp / Quay ở đáy */
+      #bottom-controls {
+        pointer-events: auto;
+        position: absolute;
+        bottom: 30px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        z-index: 10003;
+      }
+
+      /* Bộ chuyển đổi chế độ ẢNH / VIDEO */
+      #mode-toggle {
+        display: flex;
+        gap: 20px;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 6px 16px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+      }
+      .mode-btn {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 4px 8px;
+      }
+      .mode-btn.active {
+        color: #ffde59;
+      }
+
+      /* Nút Chụp / Nút Quay */
+      #action-btn {
+        width: 74px;
+        height: 74px;
+        background: #ffffff;
+        border: 5px solid rgba(255, 255, 255, 0.7);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #action-btn:active {
+        transform: scale(0.92);
+      }
+      #action-btn.video-mode {
+        border-color: rgba(255, 68, 68, 0.8);
+      }
+      #action-btn.video-mode .btn-inner {
+        width: 56px;
+        height: 56px;
+        background: #ff3b30;
+        border-radius: 50%;
+        transition: all 0.25s ease;
+      }
+      #action-btn.recording .btn-inner {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+      }
+
+      /* Đồng hồ đếm thời gian quay video */
+      #record-timer {
+        display: none;
+        position: absolute;
+        top: -35px;
+        background: rgba(255, 0, 0, 0.75);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      /* CONTAINER KHUNG PHOTOBOOTH */
       #photobooth-container {
         position: absolute;
         top: 0;
@@ -96,7 +159,7 @@
         z-index: 10001;
       }
 
-      /* Khối Đỉnh trên: Chiếm 38% chiều cao, dập dềnh bồng bềnh */
+      /* KHỐI ĐỈNH TRÊN: Biên độ trôi dạt rõ rệt, bồng bềnh êm */
       #wrapper-top {
         position: absolute;
         top: 0;
@@ -104,7 +167,7 @@
         width: 100%;
         height: 38%;
         overflow: hidden;
-        animation: floatTop 3s ease-in-out infinite alternate;
+        animation: floatTop 3.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
         will-change: transform;
       }
       #frame-top {
@@ -114,7 +177,7 @@
         object-position: top center;
       }
 
-      /* Khối Chân dưới: Chiếm 62% chiều cao, bám sát mép trái, nhún nhẹ */
+      /* KHỐI CHÂN DƯỚI: Chuyển động sóng nước, dạt mép */
       #wrapper-bottom {
         position: absolute;
         bottom: 0;
@@ -122,7 +185,7 @@
         width: 100%;
         height: 62%;
         overflow: hidden;
-        animation: floatBottom 3.4s ease-in-out infinite alternate;
+        animation: floatBottom 3.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
         will-change: transform;
       }
       #frame-bottom {
@@ -132,24 +195,37 @@
         object-position: bottom left;
       }
 
+      /* Hiệu ứng chuyển động nhìn rõ nhưng nhịp nhàng */
       @keyframes floatTop {
-        0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-7px) rotate(0.4deg); }
-        100% { transform: translateY(-13px) rotate(-0.3deg); }
+        0% {
+          transform: translateY(0px) rotate(0deg) scale(1);
+        }
+        50% {
+          transform: translateY(-12px) rotate(1.2deg) scale(1.012);
+        }
+        100% {
+          transform: translateY(-22px) rotate(-0.8deg) scale(1.005);
+        }
       }
 
       @keyframes floatBottom {
-        0% { transform: translateY(0px) translateX(0px); }
-        50% { transform: translateY(6px) translateX(3px); }
-        100% { transform: translateY(12px) translateX(-2px); }
+        0% {
+          transform: translateY(0px) translateX(0px) scale(1);
+        }
+        50% {
+          transform: translateY(10px) translateX(6px) scale(1.01);
+        }
+        100% {
+          transform: translateY(20px) translateX(-4px) scale(1);
+        }
       }
 
-      /* Popup xem ảnh đã chụp */
-      #photo-modal {
+      /* Popup xem ảnh / video kết quả */
+      #media-modal {
         display: none;
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.92);
+        background: rgba(0, 0, 0, 0.94);
         z-index: 20000;
         flex-direction: column;
         align-items: center;
@@ -157,12 +233,15 @@
         box-sizing: border-box;
         padding: 20px;
       }
-      #captured-img {
+      #captured-img, #captured-video {
         max-width: 90%;
         max-height: 75%;
-        border-radius: 12px;
+        border-radius: 14px;
         object-fit: contain;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.85);
+      }
+      #captured-video {
+        display: none;
       }
       #modal-note {
         color: white;
@@ -170,16 +249,27 @@
         margin-top: 15px;
         text-align: center;
       }
-      #close-modal-btn {
+      .modal-btns {
+        display: flex;
+        gap: 12px;
         margin-top: 15px;
-        padding: 10px 24px;
-        background: #ffffff;
-        color: #111;
-        border: none;
+      }
+      .action-sub-btn {
+        padding: 10px 22px;
         border-radius: 20px;
         font-weight: bold;
         font-size: 14px;
         cursor: pointer;
+        border: none;
+      }
+      #close-modal-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
+      #download-video-btn {
+        display: none;
+        background: #ffde59;
+        color: #111;
       }
     </style>
   </head>
@@ -193,6 +283,7 @@
         </svg>
       </button>
 
+      <!-- Khung viền Photobooth 2 tầng động -->
       <div id="photobooth-container">
         <div id="wrapper-top">
           <img id="frame-top" src="./frame.png" alt="Frame Top" />
@@ -202,15 +293,31 @@
         </div>
       </div>
 
-      <button id="capture-btn" type="button" aria-label="Chụp ảnh"></button>
+      <!-- Điều khiển Đáy -->
+      <div id="bottom-controls">
+        <div id="record-timer">00:00</div>
+        <button id="action-btn" type="button">
+          <div class="btn-inner"></div>
+        </button>
+        <div id="mode-toggle">
+          <button id="btn-mode-photo" class="mode-btn active" type="button">ẢNH</button>
+          <button id="btn-mode-video" class="mode-btn" type="button">VIDEO</button>
+        </div>
+      </div>
     </div>
 
-    <div id="photo-modal">
+    <!-- Modal xem & tải media -->
+    <div id="media-modal">
       <img id="captured-img" src="" alt="Captured Image" />
+      <video id="captured-video" controls playsinline loop></video>
       <div id="modal-note">💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b></div>
-      <button id="close-modal-btn" type="button">Chụp lại</button>
+      <div class="modal-btns">
+        <button id="close-modal-btn" class="action-sub-btn" type="button">Chụp lại</button>
+        <a id="download-video-btn" class="action-sub-btn" download="neu-concert-ar.mp4">Tải Video</a>
+      </div>
     </div>
 
+    <!-- Engine MindAR -->
     <a-scene
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 2; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
@@ -226,10 +333,18 @@
 
     <script>
       const flipBtn = document.getElementById('flip-btn');
-      const captureBtn = document.getElementById('capture-btn');
-      const photoModal = document.getElementById('photo-modal');
+      const actionBtn = document.getElementById('action-btn');
+      const btnModePhoto = document.getElementById('btn-mode-photo');
+      const btnModeVideo = document.getElementById('btn-mode-video');
+      const recordTimer = document.getElementById('record-timer');
+
+      const mediaModal = document.getElementById('media-modal');
       const capturedImg = document.getElementById('captured-img');
+      const capturedVideo = document.getElementById('captured-video');
       const closeModalBtn = document.getElementById('close-modal-btn');
+      const downloadVideoBtn = document.getElementById('download-video-btn');
+      const modalNote = document.getElementById('modal-note');
+
       const photoboothContainer = document.getElementById('photobooth-container');
       const wrapperTop = document.getElementById('wrapper-top');
       const wrapperBottom = document.getElementById('wrapper-bottom');
@@ -241,7 +356,19 @@
       const target1 = document.getElementById('target1');
 
       let isFrameActive = false;
+      let currentMode = 'photo'; // 'photo' hoặc 'video'
+      let isRecording = false;
+      let mediaRecorder = null;
+      let recordedChunks = [];
+      let recordInterval = null;
+      let recordSeconds = 0;
+      let videoRenderLoop = null;
 
+      // Canvas render ẩn cho cả chụp ảnh lẫn quay video
+      const renderCanvas = document.createElement('canvas');
+      const ctx = renderCanvas.getContext('2d');
+
+      // Kích hoạt khung
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
@@ -253,19 +380,37 @@
       target0.addEventListener('targetFound', activateFrame);
       target1.addEventListener('targetFound', activateFrame);
 
-      let currentFacingMode = 'environment';
-      let isSwitching = false;
+      // Chuyển đổi Mode ẢNH / VIDEO
+      btnModePhoto.addEventListener('click', () => {
+        if (isRecording) return;
+        currentMode = 'photo';
+        btnModePhoto.classList.add('active');
+        btnModeVideo.classList.remove('active');
+        actionBtn.classList.remove('video-mode', 'recording');
+      });
+
+      btnModeVideo.addEventListener('click', () => {
+        if (isRecording) return;
+        currentMode = 'video';
+        btnModeVideo.classList.add('active');
+        btnModePhoto.classList.remove('active');
+        actionBtn.classList.add('video-mode');
+      });
 
       closeModalBtn.addEventListener('click', () => {
-        photoModal.style.display = 'none';
+        mediaModal.style.display = 'none';
+        capturedVideo.pause();
+        capturedVideo.src = '';
       });
+
+      let currentFacingMode = 'environment';
+      let isSwitching = false;
 
       // Lật camera trước / sau
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
-        if (isSwitching) return;
+        if (isSwitching || isRecording) return;
         isSwitching = true;
         flipBtn.style.opacity = '0.5';
 
@@ -280,23 +425,15 @@
 
         try {
           const constraints = {
-            video: {
-              facingMode: nextMode,
-              width: { ideal: 1080 },
-              height: { ideal: 720 }
-            },
+            video: { facingMode: nextMode, width: { ideal: 1080 }, height: { ideal: 720 } },
             audio: false
           };
-
           const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-
           if (videoEl.srcObject) {
             videoEl.srcObject.getTracks().forEach(track => track.stop());
           }
-
           videoEl.srcObject = newStream;
           await videoEl.play();
-
           currentFacingMode = nextMode;
 
           if (currentFacingMode === 'user') {
@@ -304,7 +441,6 @@
           } else {
             videoEl.style.transform = 'scaleX(1)';
           }
-
         } catch (err) {
           alert("Không thể lật camera: " + err.message);
         } finally {
@@ -313,22 +449,17 @@
         }
       });
 
-      // CHỤP ẢNH CHUẨN XÁC BẰNG CANVAS CLIP (TRIỆT TIÊU 100% LỖI NHÂN ĐÔI HÌNH)
-      captureBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
+      // Hàm vẽ từng khung hình kết hợp Camera + Khung AR (Dùng cho cả Chụp & Quay)
+      function drawComposedFrame() {
         const video = document.querySelector('video');
         if (!video) return;
 
-        const canvas = document.createElement('canvas');
         const w = window.innerWidth;
         const h = window.innerHeight;
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
+        renderCanvas.width = w;
+        renderCanvas.height = h;
 
-        // 1. Vẽ camera nền chuẩn tỉ lệ
+        // 1. Vẽ Camera Nền
         const vW = video.videoWidth || 1;
         const vH = video.videoHeight || 1;
         const videoRatio = vW / vH;
@@ -355,67 +486,139 @@
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        // 2. Vẽ 2 tầng khung bằng kỹ thuật CLIP (Chỉ lấy đúng phần hiển thị)
+        // 2. Vẽ 2 khối AR Đỉnh & Chân
         if (isFrameActive && photoboothContainer.style.display !== 'none') {
           const fW = frameTop.naturalWidth || 1080;
           const fH = frameTop.naturalHeight || 1920;
-
           const topH = h * 0.38;
           const bottomH = h * 0.62;
           const bottomY = h * 0.38;
 
-          // --- VẼ KHỐI ĐỈNH TRÊN (Chỉ vẽ trong vùng 0 -> 38% chiều cao) ---
+          // Đỉnh trên
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
-          ctx.clip(); // Cắt sạch phần dưới, không cho lọt mascot vào đỉnh
-
-          // Tính toán transform animation của wrapper-top
+          ctx.clip();
           const styleTop = window.getComputedStyle(wrapperTop);
           const matrixTop = styleTop.transform;
           if (matrixTop && matrixTop !== 'none') {
             const v = matrixTop.split('(')[1].split(')')[0].split(',');
             ctx.transform(parseFloat(v[0]), parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]), parseFloat(v[4]), parseFloat(v[5]));
           }
-
-          // Căn chuẩn object-fit: cover; object-position: top center;
           const scaleTop = Math.max(w / fW, topH / fH);
           const rWTop = fW * scaleTop;
           const rHTop = fH * scaleTop;
-          const rXTop = (w - rWTop) / 2;
-          const rYTop = 0;
-
-          ctx.drawImage(frameTop, rXTop, rYTop, rWTop, rHTop);
+          ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
           ctx.restore();
 
-          // --- VẼ KHỐI CHÂN DƯỚI (Chỉ vẽ trong vùng 38% -> đáy) ---
+          // Chân dưới
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
-          ctx.clip(); // Cắt sạch phần trên, không cho lọt chữ đỉnh vào chân
-
-          // Tính toán transform animation của wrapper-bottom
+          ctx.clip();
           const styleBottom = window.getComputedStyle(wrapperBottom);
           const matrixBottom = styleBottom.transform;
           if (matrixBottom && matrixBottom !== 'none') {
             const v = matrixBottom.split('(')[1].split(')')[0].split(',');
             ctx.transform(parseFloat(v[0]), parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]), parseFloat(v[4]), parseFloat(v[5]));
           }
-
-          // Căn chuẩn object-fit: cover; object-position: bottom left; (Sát mép trái)
           const scaleBottom = Math.max(w / fW, bottomH / fH);
           const rWBottom = fW * scaleBottom;
           const rHBottom = fH * scaleBottom;
-          const rXBottom = 0; // Áp sát lề trái
-          const rYBottom = bottomY + (bottomH - rHBottom); // Áp sát lề đáy
-
-          ctx.drawImage(frameBottom, rXBottom, rYBottom, rWBottom, rHBottom);
+          ctx.drawImage(frameBottom, 0, bottomY + (bottomH - rHBottom), rWBottom, rHBottom);
           ctx.restore();
         }
+      }
 
-        capturedImg.src = canvas.toDataURL('image/png');
-        photoModal.style.display = 'flex';
+      // Nút hành động (Chụp ảnh hoặc Quay video)
+      actionBtn.addEventListener('click', () => {
+        if (currentMode === 'photo') {
+          // CHẾ ĐỘ CHỤP ẢNH
+          drawComposedFrame();
+          capturedImg.src = renderCanvas.toDataURL('image/png');
+          capturedImg.style.display = 'block';
+          capturedVideo.style.display = 'none';
+          downloadVideoBtn.style.display = 'none';
+          closeModalBtn.textContent = 'Chụp lại';
+          modalNote.innerHTML = '💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b>';
+          mediaModal.style.display = 'flex';
+        } else {
+          // CHẾ ĐỘ QUAY VIDEO
+          if (!isRecording) {
+            startRecording();
+          } else {
+            stopRecording();
+          }
+        }
       });
+
+      function startRecording() {
+        isRecording = true;
+        recordedChunks = [];
+        recordSeconds = 0;
+        recordTimer.textContent = '00:00';
+        recordTimer.style.display = 'block';
+        actionBtn.classList.add('recording');
+
+        // Bắt đầu vòng lặp vẽ liên tục 30 FPS vào Canvas
+        const renderLoop = () => {
+          drawComposedFrame();
+          videoRenderLoop = requestAnimationFrame(renderLoop);
+        };
+        renderLoop();
+
+        const stream = renderCanvas.captureStream(30);
+        let mimeType = 'video/webm;codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+        }
+
+        try {
+          mediaRecorder = new MediaRecorder(stream, { mimeType });
+        } catch (e) {
+          mediaRecorder = new MediaRecorder(stream);
+        }
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          cancelAnimationFrame(videoRenderLoop);
+          const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/mp4' });
+          const videoURL = URL.createObjectURL(blob);
+
+          capturedVideo.src = videoURL;
+          capturedVideo.style.display = 'block';
+          capturedImg.style.display = 'none';
+          downloadVideoBtn.style.display = 'inline-block';
+          downloadVideoBtn.href = videoURL;
+          closeModalBtn.textContent = 'Quay lại';
+          modalNote.innerHTML = '💡 Xem lại video hoặc bấm nút bên dưới để <b>Tải về</b>';
+          mediaModal.style.display = 'flex';
+        };
+
+        mediaRecorder.start();
+
+        recordInterval = setInterval(() => {
+          recordSeconds++;
+          const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+          const secs = String(recordSeconds % 60).padStart(2, '0');
+          recordTimer.textContent = `${mins}:${secs}`;
+        }, 1000);
+      }
+
+      function stopRecording() {
+        isRecording = false;
+        clearInterval(recordInterval);
+        recordTimer.style.display = 'none';
+        actionBtn.classList.remove('recording');
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+      }
     </script>
   </body>
 </html>
