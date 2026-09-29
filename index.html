@@ -4,7 +4,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU Concert Photobooth AR</title>
     
-    <!-- Tối ưu DNS & Preconnect giúp tải thư viện CDN nhanh hơn -->
     <link rel="preconnect" href="https://aframe.io" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preload" href="./frame.png" as="image">
@@ -33,18 +32,33 @@
         align-items: center;
         justify-content: center;
         color: white;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.4s ease;
       }
       .spinner {
-        width: 40px; height: 40px;
-        border: 4px solid rgba(255, 255, 255, 0.2);
-        border-top: 4px solid #ffde59;
+        width: 38px; height: 38px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top: 3px solid #ffde59;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
       }
       @keyframes spin { 100% { transform: rotate(360deg); } }
 
+      /* Lớp phủ chuyển cảnh mượt mà khi đổi camera (Cross-fade & Blur) */
+      #cam-transition-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: #000;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 9999;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #cam-transition-overlay.active {
+        opacity: 0.7;
+      }
+
+      /* Video camera cho selfie native */
       #selfie-video {
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
@@ -54,6 +68,7 @@
         transform: scaleX(-1);
       }
 
+      /* Nút xoay camera với hiệu ứng xoay icon */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
@@ -69,8 +84,12 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         -webkit-tap-highlight-color: transparent;
         z-index: 10003;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
       }
       #flip-btn svg { width: 26px; height: 26px; fill: #ffffff; }
+      #flip-btn.rotating {
+        transform: rotate(180deg) scale(0.9);
+      }
 
       #scan-hint {
         position: absolute;
@@ -182,11 +201,13 @@
     </style>
   </head>
   <body>
-    <!-- Màn hình chờ giúp che đi độ khựng lúc cấp quyền camera -->
     <div id="loading-screen">
       <div class="spinner"></div>
-      <div style="font-size: 14px; letter-spacing: 0.5px;">Đang tải AR Camera...</div>
+      <div style="font-size: 14px; letter-spacing: 0.5px;">Đang mở AR Camera...</div>
     </div>
+
+    <!-- Màn che chuyển cảnh mượt mắt -->
+    <div id="cam-transition-overlay"></div>
 
     <video id="selfie-video" autoplay playsinline muted></video>
 
@@ -230,7 +251,6 @@
       </div>
     </div>
 
-    <!-- Tối ưu MindAR: Giảm tải GPU, bắt nét nhanh hơn -->
     <a-scene
       id="arScene"
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 3; missTolerance: 5; uiLoading: no; uiScanning: no;"
@@ -248,6 +268,7 @@
     <script>
       const sceneEl = document.getElementById('arScene');
       const loadingScreen = document.getElementById('loading-screen');
+      const transitionOverlay = document.getElementById('cam-transition-overlay');
       const flipBtn = document.getElementById('flip-btn');
       const actionBtn = document.getElementById('action-btn');
       const btnModePhoto = document.getElementById('btn-mode-photo');
@@ -288,10 +309,9 @@
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
-      // Tắt màn hình loading khi camera đã sẵn sàng
       sceneEl.addEventListener('arReady', () => {
         loadingScreen.style.opacity = '0';
-        setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
+        setTimeout(() => { loadingScreen.style.display = 'none'; }, 400);
       });
 
       const activateFrame = () => {
@@ -332,31 +352,36 @@
         return document.querySelector('a-scene video') || document.querySelector('video');
       }
 
+      // XỬ LÝ LẬT CAMERA MƯỢT MÀ TỐI ĐA (FAST SWITCH & SMOOTH TRANSITION)
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
+
         if (isSwitching || isRecording) return;
         isSwitching = true;
-        flipBtn.style.opacity = '0.4';
+
+        // 1. Hiệu ứng xoay icon và mờ nền chuyển cảnh ngay lúc bấm
+        flipBtn.classList.add('rotating');
+        transitionOverlay.classList.add('active');
 
         try {
           if (!isSelfieMode) {
-            if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
-              sceneEl.systems['mindar-image-system'].stop();
-            }
-            sceneEl.style.display = 'none';
-
-            // Dùng độ phân giải tối ưu 720p để chạy mượt 60fps
+            // Chuyển sang Camera trước (Selfie)
             const stream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+              video: { facingMode: 'user', width: { ideal: 1280 } },
               audio: false
             });
+
             customStream = stream;
             selfieVideo.srcObject = stream;
             selfieVideo.style.display = 'block';
             await selfieVideo.play();
+
+            // Ẩn scene AR để giải phóng 100% tài nguyên render
+            sceneEl.style.visibility = 'hidden';
             isSelfieMode = true;
           } else {
+            // Chuyển lại Camera sau
             if (customStream) {
               customStream.getTracks().forEach(track => track.stop());
               customStream = null;
@@ -364,19 +389,18 @@
             selfieVideo.style.display = 'none';
             selfieVideo.srcObject = null;
 
-            sceneEl.style.display = 'block';
-            if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
-              sceneEl.systems['mindar-image-system'].start();
-            }
+            sceneEl.style.visibility = 'visible';
             isSelfieMode = false;
           }
         } catch (err) {
-          console.error("Flip error:", err);
+          console.error("Camera switch error:", err);
         } finally {
+          // 2. Kết thúc chuyển cảnh mượt mà
           setTimeout(() => {
+            transitionOverlay.classList.remove('active');
+            flipBtn.classList.remove('rotating');
             isSwitching = false;
-            flipBtn.style.opacity = '1';
-          }, 300);
+          }, 200);
         }
       });
 
