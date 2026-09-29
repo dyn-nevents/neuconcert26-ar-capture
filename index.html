@@ -3,6 +3,12 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU Concert Photobooth AR</title>
+    
+    <!-- Tối ưu DNS & Preconnect giúp tải thư viện CDN nhanh hơn -->
+    <link rel="preconnect" href="https://aframe.io" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preload" href="./frame.png" as="image">
+
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
@@ -11,35 +17,48 @@
 
       #ui-container {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: 0; left: 0; width: 100%; height: 100%;
         z-index: 10000;
         pointer-events: none;
       }
 
-      /* Video camera dự phòng siêu mượt khi lật sang selfie */
+      /* Màn hình chờ loading nhẹ nhàng */
+      #loading-screen {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: #0b0c10;
+        z-index: 30000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        transition: opacity 0.5s ease;
+      }
+      .spinner {
+        width: 40px; height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-top: 4px solid #ffde59;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 15px;
+      }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+
       #selfie-video {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: 0; left: 0; width: 100%; height: 100%;
         object-fit: cover;
         z-index: 1;
         display: none;
-        transform: scaleX(-1); /* Lật gương selfie */
+        transform: scaleX(-1);
       }
 
-      /* Nút xoay camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
-        top: 24px;
-        right: 24px;
-        width: 50px;
-        height: 50px;
+        top: 24px; right: 24px;
+        width: 50px; height: 50px;
         background: rgba(0, 0, 0, 0.65);
         border: 2px solid #ffffff;
         border-radius: 50%;
@@ -50,22 +69,12 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         -webkit-tap-highlight-color: transparent;
         z-index: 10003;
-        transition: transform 0.15s ease, opacity 0.2s;
       }
-      #flip-btn svg {
-        width: 26px;
-        height: 26px;
-        fill: #ffffff;
-      }
-      #flip-btn:active {
-        transform: scale(0.9);
-      }
+      #flip-btn svg { width: 26px; height: 26px; fill: #ffffff; }
 
-      /* Hướng dẫn quét */
       #scan-hint {
         position: absolute;
-        top: 30px;
-        left: 50%;
+        top: 30px; left: 50%;
         transform: translateX(-50%);
         background: rgba(0, 0, 0, 0.65);
         color: white;
@@ -73,17 +82,14 @@
         border-radius: 20px;
         font-size: 13px;
         pointer-events: none;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.4s ease;
         z-index: 10003;
       }
 
-      /* Bộ điều khiển Chụp / Quay ở đáy */
       #bottom-controls {
         pointer-events: auto;
         position: absolute;
-        bottom: 30px;
-        left: 0;
-        width: 100%;
+        bottom: 30px; left: 0; width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -91,10 +97,8 @@
         z-index: 10003;
       }
 
-      /* Chuyển đổi ẢNH / VIDEO */
       #mode-toggle {
-        display: flex;
-        gap: 20px;
+        display: flex; gap: 20px;
         background: rgba(0, 0, 0, 0.45);
         padding: 6px 16px;
         border-radius: 20px;
@@ -102,182 +106,88 @@
       }
       .mode-btn {
         color: rgba(255, 255, 255, 0.6);
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        cursor: pointer;
-        border: none;
-        background: none;
-        padding: 4px 8px;
+        font-size: 13px; font-weight: 700;
+        cursor: pointer; border: none; background: none; padding: 4px 8px;
       }
-      .mode-btn.active {
-        color: #ffde59;
-      }
+      .mode-btn.active { color: #ffde59; }
 
-      /* Nút Chụp / Quay */
       #action-btn {
-        width: 74px;
-        height: 74px;
+        width: 74px; height: 74px;
         background: #ffffff;
         border: 5px solid rgba(255, 255, 255, 0.7);
         border-radius: 50%;
         cursor: pointer;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.25s ease;
-        -webkit-tap-highlight-color: transparent;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s ease;
       }
-      #action-btn:active {
-        transform: scale(0.92);
-      }
-      #action-btn.video-mode {
-        border-color: rgba(255, 68, 68, 0.8);
-      }
+      #action-btn:active { transform: scale(0.92); }
+      #action-btn.video-mode { border-color: rgba(255, 68, 68, 0.8); }
       #action-btn.video-mode .btn-inner {
-        width: 56px;
-        height: 56px;
-        background: #ff3b30;
-        border-radius: 50%;
-        transition: all 0.25s ease;
+        width: 56px; height: 56px; background: #ff3b30; border-radius: 50%;
       }
-      #action-btn.recording .btn-inner {
-        width: 26px;
-        height: 26px;
-        border-radius: 6px;
-      }
+      #action-btn.recording .btn-inner { width: 26px; height: 26px; border-radius: 6px; }
 
-      /* Bộ đếm thời gian video */
       #record-timer {
-        display: none;
-        position: absolute;
-        top: -35px;
-        background: rgba(255, 0, 0, 0.75);
-        color: white;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: bold;
+        display: none; position: absolute; top: -35px;
+        background: rgba(255, 0, 0, 0.75); color: white;
+        padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold;
       }
 
-      /* KHUNG PHOTOBOOTH */
       #photobooth-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        display: none;
-        z-index: 10001;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; display: none; z-index: 10001;
       }
 
-      /* KHỐI ĐỈNH TRÊN */
       #wrapper-top {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 38%;
+        position: absolute; top: 0; left: 0; width: 100%; height: 38%;
         overflow: hidden;
         animation: floatTop 3.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
         will-change: transform;
       }
-      #frame-top {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: top center;
-      }
+      #frame-top { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 
-      /* KHỐI CHÂN DƯỚI */
       #wrapper-bottom {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 62%;
+        position: absolute; bottom: 0; left: 0; width: 100%; height: 62%;
         overflow: hidden;
         animation: floatBottom 3.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
         will-change: transform;
       }
-      #frame-bottom {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: bottom left;
-      }
+      #frame-bottom { width: 100%; height: 100%; object-fit: cover; object-position: bottom left; }
 
       @keyframes floatTop {
-        0% { transform: translateY(0px) rotate(0deg) scale(1); }
-        50% { transform: translateY(-12px) rotate(1.2deg) scale(1.012); }
-        100% { transform: translateY(-22px) rotate(-0.8deg) scale(1.005); }
+        0% { transform: translateY(0px) rotate(0deg); }
+        100% { transform: translateY(-20px) rotate(1.2deg); }
       }
-
       @keyframes floatBottom {
-        0% { transform: translateY(0px) translateX(0px) scale(1); }
-        50% { transform: translateY(10px) translateX(6px) scale(1.01); }
-        100% { transform: translateY(20px) translateX(-4px) scale(1); }
+        0% { transform: translateY(0px) translateX(0px); }
+        100% { transform: translateY(18px) translateX(5px); }
       }
 
-      /* Modal xem media */
       #media-modal {
-        display: none;
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.94);
-        z-index: 20000;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        padding: 20px;
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.94); z-index: 20000;
+        flex-direction: column; align-items: center; justify-content: center; padding: 20px;
       }
       #captured-img, #captured-video {
-        max-width: 90%;
-        max-height: 75%;
-        border-radius: 14px;
-        object-fit: contain;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.85);
+        max-width: 90%; max-height: 75%; border-radius: 14px; object-fit: contain;
       }
-      #captured-video {
-        display: none;
-      }
-      #modal-note {
-        color: white;
-        font-size: 14px;
-        margin-top: 15px;
-        text-align: center;
-      }
-      .modal-btns {
-        display: flex;
-        gap: 12px;
-        margin-top: 15px;
-      }
+      #captured-video { display: none; }
+      #modal-note { color: white; font-size: 14px; margin-top: 15px; text-align: center; }
+      .modal-btns { display: flex; gap: 12px; margin-top: 15px; }
       .action-sub-btn {
-        padding: 10px 22px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 14px;
-        cursor: pointer;
-        border: none;
-        text-decoration: none;
+        padding: 10px 22px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; border: none; text-decoration: none;
       }
-      #close-modal-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: #fff;
-      }
-      #download-video-btn {
-        display: none;
-        background: #ffde59;
-        color: #111;
-        line-height: 1.4;
-      }
+      #close-modal-btn { background: rgba(255, 255, 255, 0.2); color: #fff; }
+      #download-video-btn { display: none; background: #ffde59; color: #111; }
     </style>
   </head>
   <body>
-    <!-- Video native độc lập cho selfie (chống 100% màn hình đen) -->
+    <!-- Màn hình chờ giúp che đi độ khựng lúc cấp quyền camera -->
+    <div id="loading-screen">
+      <div class="spinner"></div>
+      <div style="font-size: 14px; letter-spacing: 0.5px;">Đang tải AR Camera...</div>
+    </div>
+
     <video id="selfie-video" autoplay playsinline muted></video>
 
     <div id="ui-container">
@@ -320,12 +230,12 @@
       </div>
     </div>
 
-    <!-- MindAR Scene -->
+    <!-- Tối ưu MindAR: Giảm tải GPU, bắt nét nhanh hơn -->
     <a-scene
       id="arScene"
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 1; missTolerance: 2; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 3; missTolerance: 5; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
-      renderer="preserveDrawingBuffer: true, antialias: true, powerPreference: high-performance"
+      renderer="preserveDrawingBuffer: true, antialias: false, precision: mediump, powerPreference: high-performance"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
@@ -337,6 +247,7 @@
 
     <script>
       const sceneEl = document.getElementById('arScene');
+      const loadingScreen = document.getElementById('loading-screen');
       const flipBtn = document.getElementById('flip-btn');
       const actionBtn = document.getElementById('action-btn');
       const btnModePhoto = document.getElementById('btn-mode-photo');
@@ -377,6 +288,12 @@
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
+      // Tắt màn hình loading khi camera đã sẵn sàng
+      sceneEl.addEventListener('arReady', () => {
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
+      });
+
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
@@ -410,33 +327,26 @@
         capturedVideo.src = '';
       });
 
-      // LẤY VIDEO ĐANG HOẠT ĐỘNG
       function getActiveVideo() {
-        if (isSelfieMode) {
-          return selfieVideo;
-        }
+        if (isSelfieMode) return selfieVideo;
         return document.querySelector('a-scene video') || document.querySelector('video');
       }
 
-      // XỬ LÝ ĐỔI CAMERA CHỐNG SẬP VÀ ĐEN MÀN HÌNH 100%
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
         if (isSwitching || isRecording) return;
         isSwitching = true;
         flipBtn.style.opacity = '0.4';
 
         try {
           if (!isSelfieMode) {
-            // CHUYỂN SANG CAMERA TRƯỚC (SELFIE)
-            // 1. Tạm dừng AR MindAR an toàn (không làm sập WebGL)
             if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
               sceneEl.systems['mindar-image-system'].stop();
             }
             sceneEl.style.display = 'none';
 
-            // 2. Bật camera trước độc lập
+            // Dùng độ phân giải tối ưu 720p để chạy mượt 60fps
             const stream = await navigator.mediaDevices.getUserMedia({
               video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
               audio: false
@@ -445,10 +355,8 @@
             selfieVideo.srcObject = stream;
             selfieVideo.style.display = 'block';
             await selfieVideo.play();
-
             isSelfieMode = true;
           } else {
-            // CHUYỂN LẠI CAMERA SAU
             if (customStream) {
               customStream.getTracks().forEach(track => track.stop());
               customStream = null;
@@ -460,12 +368,10 @@
             if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
               sceneEl.systems['mindar-image-system'].start();
             }
-
             isSelfieMode = false;
           }
         } catch (err) {
-          console.error("Camera flip error:", err);
-          alert("Không thể chuyển đổi camera: " + err.message);
+          console.error("Flip error:", err);
         } finally {
           setTimeout(() => {
             isSwitching = false;
@@ -474,7 +380,6 @@
         }
       });
 
-      // Vẽ Camera + Khung AR
       function drawComposedFrame() {
         const video = getActiveVideo();
         if (!video || video.readyState < 2) return;
@@ -517,7 +422,6 @@
           const bottomH = h * 0.62;
           const bottomY = h * 0.38;
 
-          // Khối Đỉnh trên
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
@@ -534,7 +438,6 @@
           ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
           ctx.restore();
 
-          // Khối Chân dưới
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
@@ -605,9 +508,7 @@
         }
 
         mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            recordedChunks.push(e.data);
-          }
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
         };
 
         mediaRecorder.onstop = () => {
