@@ -8,12 +8,22 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
+      * { box-sizing: border-box; }
       body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 
+      /* Video camera hiển thị nền mượt mà 60fps */
+      #camera-stream {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        object-fit: cover;
+        z-index: 1;
+      }
+
+      /* Container toàn bộ UI và Khung */
       #ui-container {
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 10000;
+        z-index: 10;
         pointer-events: none;
       }
 
@@ -32,7 +42,7 @@
         cursor: pointer;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         -webkit-tap-highlight-color: transparent;
-        z-index: 10003;
+        z-index: 20;
       }
       #flip-btn svg { width: 26px; height: 26px; fill: #ffffff; }
       #flip-btn:active { transform: scale(0.9); }
@@ -42,17 +52,17 @@
         position: absolute;
         top: 30px; left: 50%;
         transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.65);
+        background: rgba(0, 0, 0, 0.7);
         color: white;
         padding: 8px 18px;
         border-radius: 20px;
         font-size: 13px;
         pointer-events: none;
         transition: opacity 0.4s ease;
-        z-index: 10003;
+        z-index: 20;
       }
 
-      /* Điều khiển chụp / quay */
+      /* Điều khiển đáy */
       #bottom-controls {
         pointer-events: auto;
         position: absolute;
@@ -60,13 +70,13 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 15px;
-        z-index: 10003;
+        gap: 14px;
+        z-index: 20;
       }
 
       #mode-toggle {
         display: flex; gap: 20px;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(0, 0, 0, 0.5);
         padding: 6px 16px;
         border-radius: 20px;
         backdrop-filter: blur(8px);
@@ -81,7 +91,7 @@
       #action-btn {
         width: 74px; height: 74px;
         background: #ffffff;
-        border: 5px solid rgba(255, 255, 255, 0.7);
+        border: 5px solid rgba(255, 255, 255, 0.75);
         border-radius: 50%;
         cursor: pointer;
         display: flex; align-items: center; justify-content: center;
@@ -89,53 +99,63 @@
         -webkit-tap-highlight-color: transparent;
       }
       #action-btn:active { transform: scale(0.92); }
-      #action-btn.video-mode { border-color: rgba(255, 68, 68, 0.8); }
+      #action-btn.video-mode { border-color: rgba(255, 68, 68, 0.85); }
       #action-btn.video-mode .btn-inner {
-        width: 56px; height: 56px; background: #ff3b30; border-radius: 50%;
+        width: 54px; height: 54px; background: #ff3b30; border-radius: 50%;
         transition: all 0.2s ease;
       }
-      #action-btn.recording .btn-inner { width: 26px; height: 26px; border-radius: 6px; }
+      #action-btn.recording .btn-inner { width: 24px; height: 24px; border-radius: 6px; }
 
       #record-timer {
         display: none; position: absolute; top: -35px;
-        background: rgba(255, 0, 0, 0.75); color: white;
+        background: rgba(255, 0, 0, 0.8); color: white;
         padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold;
       }
 
-      /* Khung Photobooth chuyển động */
+      /* KHUNG PHOTOBOOTH CHUYỂN ĐỘNG RÕ RÀNG */
       #photobooth-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        pointer-events: none; display: none; z-index: 10001;
+        pointer-events: none; display: none; z-index: 15;
       }
 
+      /* Cụm Trên: Lắc lư bồng bềnh rõ nét */
       #wrapper-top {
-        position: absolute; top: 0; left: 0; width: 100%; height: 38%;
-        overflow: hidden;
-        animation: floatTop 3.2s ease-in-out infinite alternate;
-        will-change: transform;
+        position: absolute; top: 0; left: 0; width: 100%; height: 42%;
+        animation: floatTop 3s ease-in-out infinite alternate;
+        transform-origin: center top;
       }
       #frame-top { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 
+      /* Cụm Dưới: Nhún dập dềnh rõ nét, sát mép trái */
       #wrapper-bottom {
-        position: absolute; bottom: 0; left: 0; width: 100%; height: 62%;
-        overflow: hidden;
-        animation: floatBottom 3.6s ease-in-out infinite alternate;
-        will-change: transform;
+        position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
+        animation: floatBottom 3.4s ease-in-out infinite alternate;
+        transform-origin: left bottom;
       }
       #frame-bottom { width: 100%; height: 100%; object-fit: cover; object-position: bottom left; }
 
+      /* Tăng biên độ chuyển động để thấy rõ độ 'thở' của element */
       @keyframes floatTop {
-        0% { transform: translateY(0px) rotate(0deg); }
-        100% { transform: translateY(-16px) rotate(1deg); }
+        0% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-14px) rotate(1.4deg) scale(1.015); }
+        100% { transform: translateY(-26px) rotate(-1deg) scale(1.02); }
       }
       @keyframes floatBottom {
-        0% { transform: translateY(0px) translateX(0px); }
-        100% { transform: translateY(14px) translateX(5px); }
+        0% { transform: translateY(0px) translateX(0px) scale(1); }
+        50% { transform: translateY(12px) translateX(8px) scale(1.015); }
+        100% { transform: translateY(24px) translateX(-5px) scale(1.02); }
       }
 
+      /* MindAR chạy ẩn ở nền thấp */
+      #arScene {
+        position: fixed; top: 0; left: 0; width: 1px; height: 1px;
+        opacity: 0.01; pointer-events: none; z-index: 0;
+      }
+
+      /* Modal hiển thị ảnh / video */
       #media-modal {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.94); z-index: 20000;
+        background: rgba(0, 0, 0, 0.95); z-index: 100;
         flex-direction: column; align-items: center; justify-content: center; padding: 20px;
       }
       #captured-img, #captured-video {
@@ -147,11 +167,14 @@
       .action-sub-btn {
         padding: 10px 22px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; border: none; text-decoration: none;
       }
-      #close-modal-btn { background: rgba(255, 255, 255, 0.2); color: #fff; }
+      #close-modal-btn { background: rgba(255, 255, 255, 0.25); color: #fff; }
       #download-video-btn { display: none; background: #ffde59; color: #111; }
     </style>
   </head>
   <body>
+    <!-- Video trực tiếp không qua WebGL: Đảm bảo không bao giờ đen màn hình -->
+    <video id="camera-stream" autoplay playsinline muted></video>
+
     <div id="ui-container">
       <div id="scan-hint">Hướng camera vào Logo để mở Photobooth</div>
       
@@ -192,22 +215,19 @@
       </div>
     </div>
 
-    <!-- MindAR: Cấu hình mặc định ổn định, không ép tải GPU -->
+    <!-- Engine MindAR chỉ dùng để bắt tín hiệu Target -->
     <a-scene
       id="arScene"
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; uiLoading: no; uiScanning: no;"
-      color-space="sRGB"
-      renderer="preserveDrawingBuffer: true, antialias: false"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
-
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
       <a-entity id="target0" mindar-image-target="targetIndex: 0"></a-entity>
       <a-entity id="target1" mindar-image-target="targetIndex: 1"></a-entity>
     </a-scene>
 
     <script>
+      const cameraStream = document.getElementById('camera-stream');
       const flipBtn = document.getElementById('flip-btn');
       const actionBtn = document.getElementById('action-btn');
       const btnModePhoto = document.getElementById('btn-mode-photo');
@@ -242,16 +262,41 @@
 
       let currentFacingMode = 'environment';
       let isSwitching = false;
+      let currentStream = null;
 
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
-      // Mở khung Photobooth (không đụng vào hệ thống lõi để tránh sập WebGL)
+      // Khởi tạo Camera trực tiếp với phần cứng
+      async function initCamera(facingMode) {
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 } },
+            audio: false
+          });
+          currentStream = stream;
+          cameraStream.srcObject = stream;
+          cameraStream.style.transform = (facingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+          await cameraStream.play();
+        } catch (e) {
+          console.error("Camera Init Error:", e);
+        }
+      }
+
+      initCamera(currentFacingMode);
+
+      // Kích hoạt khung Photobooth khi quét trúng target
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
           photoboothContainer.style.display = 'block';
           scanHint.style.opacity = '0';
+          // Dọn dẹp scene AR để nhường toàn bộ GPU cho camera và animation
+          const sceneEl = document.getElementById('arScene');
+          if (sceneEl) sceneEl.remove();
         }
       };
 
@@ -280,60 +325,32 @@
         capturedVideo.src = '';
       });
 
-      // LẬT CAMERA BẰNG WEBRTC NATIVE TRÊN CÙNG 1 THẺ VIDEO (AN TOÀN CHO MOBILE)
+      // LẬT CAMERA MƯỢT MÀ, KHÔNG ĐỤNG ĐỘ ENGINE
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
         if (isSwitching || isRecording) return;
         isSwitching = true;
         flipBtn.style.opacity = '0.4';
 
-        const videoEl = document.querySelector('video');
-        if (!videoEl) {
-          isSwitching = false;
-          flipBtn.style.opacity = '1';
-          return;
-        }
+        currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        await initCamera(currentFacingMode);
 
-        const nextMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
-
-        try {
-          const newStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: nextMode },
-            audio: false
-          });
-
-          if (videoEl.srcObject) {
-            videoEl.srcObject.getTracks().forEach(t => t.stop());
-          }
-
-          videoEl.srcObject = newStream;
-          await videoEl.play();
-
-          currentFacingMode = nextMode;
-          videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
-        } catch (err) {
-          console.warn("Không thể đổi camera:", err);
-        } finally {
-          setTimeout(() => {
-            isSwitching = false;
-            flipBtn.style.opacity = '1';
-          }, 300);
-        }
+        isSwitching = false;
+        flipBtn.style.opacity = '1';
       });
 
+      // Vẽ Canvas thời gian thực (được tối ưu không gây lag)
       function drawComposedFrame() {
-        const video = document.querySelector('video');
-        if (!video || video.readyState < 2) return;
+        if (!cameraStream || cameraStream.readyState < 2) return;
 
         const w = window.innerWidth;
         const h = window.innerHeight;
         renderCanvas.width = w;
         renderCanvas.height = h;
 
-        const vW = video.videoWidth || 1;
-        const vH = video.videoHeight || 1;
+        const vW = cameraStream.videoWidth || 1;
+        const vH = cameraStream.videoHeight || 1;
         const videoRatio = vW / vH;
         const screenRatio = w / h;
 
@@ -355,17 +372,17 @@
           ctx.translate(w, 0);
           ctx.scale(-1, 1);
         }
-        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
+        ctx.drawImage(cameraStream, sx, sy, sWidth, sHeight, 0, 0, w, h);
         ctx.restore();
 
-        if (isFrameActive && photoboothContainer.style.display !== 'none') {
+        if (isFrameActive) {
           const fW = frameTop.naturalWidth || 1080;
           const fH = frameTop.naturalHeight || 1920;
-          const topH = h * 0.38;
-          const bottomH = h * 0.62;
-          const bottomY = h * 0.38;
+          const topH = h * 0.42;
+          const bottomH = h * 0.60;
+          const bottomY = h * 0.40;
 
-          // Khối đỉnh
+          // Vẽ Cụm Trên
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
@@ -377,12 +394,10 @@
             ctx.transform(parseFloat(v[0]), parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]), parseFloat(v[4]), parseFloat(v[5]));
           }
           const scaleTop = Math.max(w / fW, topH / fH);
-          const rWTop = fW * scaleTop;
-          const rHTop = fH * scaleTop;
-          ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
+          ctx.drawImage(frameTop, (w - fW * scaleTop) / 2, 0, fW * scaleTop, fH * scaleTop);
           ctx.restore();
 
-          // Khối chân
+          // Vẽ Cụm Dưới
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
@@ -394,9 +409,7 @@
             ctx.transform(parseFloat(v[0]), parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]), parseFloat(v[4]), parseFloat(v[5]));
           }
           const scaleBottom = Math.max(w / fW, bottomH / fH);
-          const rWBottom = fW * scaleBottom;
-          const rHBottom = fH * scaleBottom;
-          ctx.drawImage(frameBottom, 0, bottomY + (bottomH - rHBottom), rWBottom, rHBottom);
+          ctx.drawImage(frameBottom, 0, bottomY + (bottomH - fH * scaleBottom), fW * scaleBottom, fH * scaleBottom);
           ctx.restore();
         }
       }
@@ -412,11 +425,8 @@
           modalNote.innerHTML = '💡 Nhấn giữ vào ảnh để chọn <b>"Lưu hình ảnh"</b>';
           mediaModal.style.display = 'flex';
         } else {
-          if (!isRecording) {
-            startRecording();
-          } else {
-            stopRecording();
-          }
+          if (!isRecording) startRecording();
+          else stopRecording();
         }
       });
 
@@ -437,13 +447,9 @@
         const stream = renderCanvas.captureStream(30);
         let options = {};
         if (window.MediaRecorder) {
-          if (MediaRecorder.isTypeSupported('video/mp4')) {
-            options = { mimeType: 'video/mp4' };
-          } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-            options = { mimeType: 'video/webm;codecs=vp9' };
-          } else if (MediaRecorder.isTypeSupported('video/webm')) {
-            options = { mimeType: 'video/webm' };
-          }
+          if (MediaRecorder.isTypeSupported('video/mp4')) options = { mimeType: 'video/mp4' };
+          else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) options = { mimeType: 'video/webm;codecs=vp9' };
+          else if (MediaRecorder.isTypeSupported('video/webm')) options = { mimeType: 'video/webm' };
         }
 
         try {
