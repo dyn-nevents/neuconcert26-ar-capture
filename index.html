@@ -4,10 +4,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>NEU Concert Photobooth AR</title>
     
-    <link rel="preconnect" href="https://aframe.io" crossorigin>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preload" href="./frame.png" as="image">
-
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
@@ -21,54 +17,7 @@
         pointer-events: none;
       }
 
-      /* Màn hình chờ loading nhẹ nhàng */
-      #loading-screen {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: #0b0c10;
-        z-index: 30000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        transition: opacity 0.4s ease;
-      }
-      .spinner {
-        width: 38px; height: 38px;
-        border: 3px solid rgba(255, 255, 255, 0.2);
-        border-top: 3px solid #ffde59;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-bottom: 12px;
-      }
-      @keyframes spin { 100% { transform: rotate(360deg); } }
-
-      /* Lớp phủ chuyển cảnh mượt mà khi đổi camera (Cross-fade & Blur) */
-      #cam-transition-overlay {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: #000;
-        opacity: 0;
-        pointer-events: none;
-        z-index: 9999;
-        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      #cam-transition-overlay.active {
-        opacity: 0.7;
-      }
-
-      /* Video camera cho selfie native */
-      #selfie-video {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        object-fit: cover;
-        z-index: 1;
-        display: none;
-        transform: scaleX(-1);
-      }
-
-      /* Nút xoay camera với hiệu ứng xoay icon */
+      /* Nút xoay camera */
       #flip-btn {
         pointer-events: auto;
         position: absolute;
@@ -84,13 +33,12 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         -webkit-tap-highlight-color: transparent;
         z-index: 10003;
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
+        transition: transform 0.2s ease;
       }
       #flip-btn svg { width: 26px; height: 26px; fill: #ffffff; }
-      #flip-btn.rotating {
-        transform: rotate(180deg) scale(0.9);
-      }
+      #flip-btn:active { transform: scale(0.9); }
 
+      /* Hướng dẫn quét */
       #scan-hint {
         position: absolute;
         top: 30px; left: 50%;
@@ -105,6 +53,7 @@
         z-index: 10003;
       }
 
+      /* Điều khiển đáy */
       #bottom-controls {
         pointer-events: auto;
         position: absolute;
@@ -152,6 +101,7 @@
         padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold;
       }
 
+      /* Khung Photobooth */
       #photobooth-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         pointer-events: none; display: none; z-index: 10001;
@@ -160,26 +110,24 @@
       #wrapper-top {
         position: absolute; top: 0; left: 0; width: 100%; height: 38%;
         overflow: hidden;
-        animation: floatTop 3.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
-        will-change: transform;
+        animation: floatTop 3.2s ease-in-out infinite alternate;
       }
       #frame-top { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 
       #wrapper-bottom {
         position: absolute; bottom: 0; left: 0; width: 100%; height: 62%;
         overflow: hidden;
-        animation: floatBottom 3.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
-        will-change: transform;
+        animation: floatBottom 3.6s ease-in-out infinite alternate;
       }
       #frame-bottom { width: 100%; height: 100%; object-fit: cover; object-position: bottom left; }
 
       @keyframes floatTop {
         0% { transform: translateY(0px) rotate(0deg); }
-        100% { transform: translateY(-20px) rotate(1.2deg); }
+        100% { transform: translateY(-18px) rotate(1.2deg); }
       }
       @keyframes floatBottom {
         0% { transform: translateY(0px) translateX(0px); }
-        100% { transform: translateY(18px) translateX(5px); }
+        100% { transform: translateY(16px) translateX(5px); }
       }
 
       #media-modal {
@@ -201,16 +149,6 @@
     </style>
   </head>
   <body>
-    <div id="loading-screen">
-      <div class="spinner"></div>
-      <div style="font-size: 14px; letter-spacing: 0.5px;">Đang mở AR Camera...</div>
-    </div>
-
-    <!-- Màn che chuyển cảnh mượt mắt -->
-    <div id="cam-transition-overlay"></div>
-
-    <video id="selfie-video" autoplay playsinline muted></video>
-
     <div id="ui-container">
       <div id="scan-hint">Hướng camera vào Logo để mở Photobooth</div>
       
@@ -251,11 +189,12 @@
       </div>
     </div>
 
+    <!-- MindAR cấu hình nhẹ nhất để không tốn pin -->
     <a-scene
       id="arScene"
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 3; missTolerance: 5; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 2; missTolerance: 4; uiLoading: no; uiScanning: no;"
       color-space="sRGB"
-      renderer="preserveDrawingBuffer: true, antialias: false, precision: mediump, powerPreference: high-performance"
+      renderer="preserveDrawingBuffer: true, antialias: false"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
@@ -267,14 +206,11 @@
 
     <script>
       const sceneEl = document.getElementById('arScene');
-      const loadingScreen = document.getElementById('loading-screen');
-      const transitionOverlay = document.getElementById('cam-transition-overlay');
       const flipBtn = document.getElementById('flip-btn');
       const actionBtn = document.getElementById('action-btn');
       const btnModePhoto = document.getElementById('btn-mode-photo');
       const btnModeVideo = document.getElementById('btn-mode-video');
       const recordTimer = document.getElementById('record-timer');
-      const selfieVideo = document.getElementById('selfie-video');
 
       const mediaModal = document.getElementById('media-modal');
       const capturedImg = document.getElementById('captured-img');
@@ -302,23 +238,23 @@
       let recordSeconds = 0;
       let videoRenderLoop = null;
 
-      let isSelfieMode = false;
+      let currentFacingMode = 'environment';
       let isSwitching = false;
-      let customStream = null;
 
       const renderCanvas = document.createElement('canvas');
       const ctx = renderCanvas.getContext('2d');
 
-      sceneEl.addEventListener('arReady', () => {
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => { loadingScreen.style.display = 'none'; }, 400);
-      });
-
+      // Khi quét trúng target -> Mở photobooth và DỪNG hẳn vòng lặp quét AR để máy siêu mượt!
       const activateFrame = () => {
         if (!isFrameActive) {
           isFrameActive = true;
           photoboothContainer.style.display = 'block';
           scanHint.style.opacity = '0';
+
+          // Tắt quét ngầm giải phóng 100% CPU
+          if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
+            sceneEl.systems['mindar-image-system'].pause();
+          }
         }
       };
 
@@ -347,65 +283,51 @@
         capturedVideo.src = '';
       });
 
-      function getActiveVideo() {
-        if (isSelfieMode) return selfieVideo;
-        return document.querySelector('a-scene video') || document.querySelector('video');
-      }
-
-      // XỬ LÝ LẬT CAMERA MƯỢT MÀ TỐI ĐA (FAST SWITCH & SMOOTH TRANSITION)
+      // LẬT CAMERA BẰNG CÁCH THAY ĐỔI TRỰC TIẾP LUỒNG VIDEO (KHÔNG TẠO VIDEO MỚI, KHÔNG LAG)
       flipBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
 
         if (isSwitching || isRecording) return;
         isSwitching = true;
+        flipBtn.style.opacity = '0.5';
 
-        // 1. Hiệu ứng xoay icon và mờ nền chuyển cảnh ngay lúc bấm
-        flipBtn.classList.add('rotating');
-        transitionOverlay.classList.add('active');
+        const videoEl = document.querySelector('video');
+        if (!videoEl) {
+          isSwitching = false;
+          flipBtn.style.opacity = '1';
+          return;
+        }
+
+        const nextMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
 
         try {
-          if (!isSelfieMode) {
-            // Chuyển sang Camera trước (Selfie)
-            const stream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: 'user', width: { ideal: 1280 } },
-              audio: false
-            });
+          // Xin stream mới với cấu hình nhẹ 720p
+          const newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: nextMode, width: { ideal: 1280 } },
+            audio: false
+          });
 
-            customStream = stream;
-            selfieVideo.srcObject = stream;
-            selfieVideo.style.display = 'block';
-            await selfieVideo.play();
-
-            // Ẩn scene AR để giải phóng 100% tài nguyên render
-            sceneEl.style.visibility = 'hidden';
-            isSelfieMode = true;
-          } else {
-            // Chuyển lại Camera sau
-            if (customStream) {
-              customStream.getTracks().forEach(track => track.stop());
-              customStream = null;
-            }
-            selfieVideo.style.display = 'none';
-            selfieVideo.srcObject = null;
-
-            sceneEl.style.visibility = 'visible';
-            isSelfieMode = false;
+          // Dừng track cũ để nhường phần cứng
+          if (videoEl.srcObject) {
+            videoEl.srcObject.getTracks().forEach(t => t.stop());
           }
+
+          videoEl.srcObject = newStream;
+          await videoEl.play();
+
+          currentFacingMode = nextMode;
+          videoEl.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
         } catch (err) {
-          console.error("Camera switch error:", err);
+          console.warn("Không thể đổi camera:", err);
         } finally {
-          // 2. Kết thúc chuyển cảnh mượt mà
-          setTimeout(() => {
-            transitionOverlay.classList.remove('active');
-            flipBtn.classList.remove('rotating');
-            isSwitching = false;
-          }, 200);
+          isSwitching = false;
+          flipBtn.style.opacity = '1';
         }
       });
 
       function drawComposedFrame() {
-        const video = getActiveVideo();
+        const video = document.querySelector('video');
         if (!video || video.readyState < 2) return;
 
         const w = window.innerWidth;
@@ -432,7 +354,7 @@
         }
 
         ctx.save();
-        if (isSelfieMode) {
+        if (currentFacingMode === 'user') {
           ctx.translate(w, 0);
           ctx.scale(-1, 1);
         }
@@ -446,6 +368,7 @@
           const bottomH = h * 0.62;
           const bottomY = h * 0.38;
 
+          // Khối đỉnh
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, w, topH);
@@ -462,6 +385,7 @@
           ctx.drawImage(frameTop, (w - rWTop) / 2, 0, rWTop, rHTop);
           ctx.restore();
 
+          // Khối chân
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, bottomY, w, bottomH);
